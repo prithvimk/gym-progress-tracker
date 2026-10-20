@@ -2,6 +2,7 @@ package io.github.prithvimk.gymtracker.data.repository
 
 import io.github.prithvimk.gymtracker.data.db.dao.PersonalRecordDao
 import io.github.prithvimk.gymtracker.data.db.dao.WorkoutDao
+import io.github.prithvimk.gymtracker.data.db.dao.WorkoutExerciseEntry
 import io.github.prithvimk.gymtracker.data.db.entity.PersonalRecord
 import io.github.prithvimk.gymtracker.data.db.entity.Workout
 import io.github.prithvimk.gymtracker.data.db.entity.WorkoutExercise
@@ -28,6 +29,21 @@ class WorkoutRepository(
     /** Ends the workout. Does nothing if it has already finished. */
     suspend fun finishWorkout(id: String) {
         workoutDao.finish(id, endedAt = now())
+    }
+
+    fun observeExerciseEntries(workoutId: String): Flow<List<WorkoutExerciseEntry>> =
+        workoutDao.observeExerciseEntries(workoutId)
+
+    /** Adds the exercises to the end of the workout, in the order given. The same exercise may appear twice. */
+    suspend fun addExercises(workoutId: String, exerciseIds: List<String>) {
+        exerciseIds.forEach { exerciseId ->
+            workoutDao.appendExercise(id = newId(), workoutId = workoutId, exerciseId = exerciseId, createdAt = now())
+        }
+    }
+
+    /** Moves an exercise [offset] places within its workout; negative moves it up. */
+    suspend fun moveExercise(workoutId: String, workoutExerciseId: String, offset: Int) {
+        workoutDao.moveExercise(workoutId, workoutExerciseId, offset, updatedAt = now())
     }
 
     fun observeWorkouts(): Flow<List<Workout>> = workoutDao.observeAll()

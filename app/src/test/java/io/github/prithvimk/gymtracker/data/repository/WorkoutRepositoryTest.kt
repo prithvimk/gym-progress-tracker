@@ -6,8 +6,10 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.prithvimk.gymtracker.data.db.GymDatabase
 import io.github.prithvimk.gymtracker.data.db.withDefaults
+import io.github.prithvimk.gymtracker.data.exercise
 import io.github.prithvimk.gymtracker.data.inMemoryDatabase
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -27,6 +29,11 @@ class WorkoutRepositoryTest {
     fun setUp() {
         db = inMemoryDatabase()
         repository = repositoryFor(db)
+        runBlocking {
+            db.exerciseDao().insert(exercise(id = "bench", name = "Bench Press"))
+            db.exerciseDao().insert(exercise(id = "ohp", name = "Overhead Press"))
+            db.exerciseDao().insert(exercise(id = "fly", name = "Cable Fly"))
+        }
     }
 
     @After
@@ -110,6 +117,90 @@ class WorkoutRepositoryTest {
 
         assertEquals(started, active)
     }
+
+    @Test
+    fun `addExercises appends in the given order with their names`() = runTest {
+        val workout = repository.startEmptyWorkout()
+
+        repository.addExercises(workout.id, listOf("ohp", "bench"))
+        repository.addExercises(workout.id, listOf("fly"))
+
+        val entries = repository.observeExerciseEntries(workout.id).first()
+        assertEquals(listOf("Overhead Press", "Bench Press", "Cable Fly"), entries.map { it.name })
+        assertEquals(listOf(0, 1, 2), entries.map { it.position })
+    }
+
+    @Test
+    fun `the same exercise can be added twice`() = runTest {
+        val workout = repository.startEmptyWorkout()
+
+        repository.addExercises(workout.id, listOf("bench", "bench"))
+
+        val entries = repository.observeExerciseEntries(workout.id).first()
+        assertEquals(listOf("bench", "bench"), entries.map { it.exerciseId })
+        assertEquals(2, entries.map { it.id }.toSet().size)
+    }
+
+    @Test
+    fun `moveExercise moves up and down and stops at the ends`() = runTest {
+        val workout = repository.startEmptyWorkout()
+        repository.addExercises(workout.id, listOf("bench", "ohp", "fly"))
+        val ids = repository.observeExerciseEntries(workout.id).first().associate { it.exerciseId to it.id }
+
+        repository.moveExercise(workout.id, ids.getValue("fly"), offset = -1)
+        assertEquals(listOf("bench", "fly", "ohp"), exerciseOrder(workout.id))
+
+        repository.moveExercise(workout.id, ids.getValue("bench"), offset = 1)
+        assertEquals(listOf("fly", "bench", "ohp"), exerciseOrder(workout.id))
+
+        repository.moveExercise(workout.id, ids.getValue("fly"), offset = -1)
+        repository.moveExercise(workout.id, ids.getValue("ohp"), offset = 1)
+        assertEquals(listOf("fly", "bench", "ohp"), exerciseOrder(workout.id))
+    }
+
+    @Test
+    fun `removing an exercise keeps the rest in order and moving closes the gap`() = runTest {
+        val workout = repository.startEmptyWorkout()
+        repository.addExercises(workout.id, listOf("bench", "ohp", "fly"))
+        val ids = repository.observeExerciseEntries(workout.id).first().associate { it.exerciseId to it.id }
+
+        repository.deleteWorkoutExercise(ids.getValue("ohp"))
+        assertEquals(listOf("bench", "fly"), exerciseOrder(workout.id))
+
+        repository.moveExercise(workout.id, ids.getValue("fly"), offset = -1)
+        val entries = repository.observeExerciseEntries(workout.id).first()
+        assertEquals(listOf("fly", "bench"), entries.map { it.exerciseId })
+        assertEquals(listOf(0, 1), entries.map { it.position })
+    }
+
+    @Test
+    fun `an exercise added after a removal goes to the end`() = runTest {
+        val workout = repository.startEmptyWorkout()
+        repository.addExercises(workout.id, listOf("bench", "ohp"))
+        val first = repository.observeExerciseEntries(workout.id).first().first()
+        repository.deleteWorkoutExercise(first.id)
+
+        repository.addExercises(workout.id, listOf("fly"))
+
+        assertEquals(listOf("ohp", "fly"), exerciseOrder(workout.id))
+    }
+
+    @Test
+    fun `exercise lists are kept per workout`() = runTest {
+        val first = repository.startEmptyWorkout()
+        repository.addExercises(first.id, listOf("bench"))
+        repository.finishWorkout(first.id)
+        val second = repository.startEmptyWorkout()
+
+        repository.addExercises(second.id, listOf("ohp"))
+
+        assertEquals(listOf("bench"), exerciseOrder(first.id))
+        assertEquals(listOf("ohp"), exerciseOrder(second.id))
+        assertEquals(0, repository.observeExerciseEntries(second.id).first().single().position)
+    }
+
+    private suspend fun exerciseOrder(workoutId: String): List<String> =
+        repository.observeExerciseEntries(workoutId).first().map { it.exerciseId }
 
     private fun repositoryFor(database: GymDatabase) = WorkoutRepository(
         database.workoutDao(),
