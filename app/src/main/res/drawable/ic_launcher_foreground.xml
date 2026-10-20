@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Simple dumbbell inside the 66dp safe zone of a 108dp adaptive icon. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- bar -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M40,51h28v6h-28z" />
+    <!-- left plates -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M32,40h7v28h-7z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M26,45h5v18h-5z" />
+    <!-- right plates -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M69,40h7v28h-7z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M77,45h5v18h-5z" />
+</vector>
