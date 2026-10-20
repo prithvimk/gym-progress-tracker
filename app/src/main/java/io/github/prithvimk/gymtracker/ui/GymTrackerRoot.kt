@@ -22,7 +22,7 @@ import io.github.prithvimk.gymtracker.ui.navigation.tabEnterTransition
 import io.github.prithvimk.gymtracker.ui.navigation.tabExitTransition
 import io.github.prithvimk.gymtracker.ui.screens.HistoryScreen
 import io.github.prithvimk.gymtracker.ui.screens.SettingsScreen
-import io.github.prithvimk.gymtracker.ui.screens.WorkoutScreen
+import io.github.prithvimk.gymtracker.ui.workout.WorkoutRoute
 
 @Composable
 fun GymTrackerRoot() {
@@ -62,7 +62,7 @@ fun GymTrackerRoot() {
             popEnterTransition = { tabEnterTransition },
             popExitTransition = { tabExitTransition },
         ) {
-            composable(TopLevelDestination.WORKOUT.route) { WorkoutScreen() }
+            composable(TopLevelDestination.WORKOUT.route) { WorkoutRoute() }
             composable(TopLevelDestination.HISTORY.route) { HistoryScreen() }
             composable(TopLevelDestination.EXERCISES.route) { ExercisesRoute() }
             composable(TopLevelDestination.SETTINGS.route) { SettingsScreen() }

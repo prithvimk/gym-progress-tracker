@@ -20,11 +20,6 @@ import io.github.prithvimk.gymtracker.ui.theme.GymTrackerTheme
 // Placeholder screens for Phase 0. Each moves to its own package as it gets built.
 
 @Composable
-fun WorkoutScreen(modifier: Modifier = Modifier) {
-    PlaceholderScreen(R.string.nav_workout, R.string.placeholder_workout, modifier)
-}
-
-@Composable
 fun HistoryScreen(modifier: Modifier = Modifier) {
     PlaceholderScreen(R.string.nav_history, R.string.placeholder_history, modifier)
 }
@@ -57,8 +52,8 @@ private fun PlaceholderScreen(@StringRes titleRes: Int, @StringRes bodyRes: Int,
 
 @Preview(showBackground = true)
 @Composable
-private fun WorkoutScreenPreview() {
+private fun HistoryScreenPreview() {
     GymTrackerTheme(dynamicColor = false) {
-        WorkoutScreen()
+        HistoryScreen()
     }
 }
