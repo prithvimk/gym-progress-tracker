@@ -37,11 +37,11 @@ Estimated 1RM uses Epley: `weight × (1 + reps / 30)`, counted only for working 
 
 Goal: an empty app that builds locally and in CI.
 
-- [ ] Android Studio project with Compose, Material 3, version catalog, KSP
-- [ ] Package structure: `data/` (db, dao, repository), `domain/` (models, PR logic), `ui/` (screens, components, theme)
-- [ ] Bottom navigation shell: Workout, History, Exercises, Settings (placeholder screens)
-- [ ] GitHub Actions workflow: `./gradlew lint testDebugUnitTest assembleDebug`, upload debug APK as an artifact
-- [ ] `.editorconfig` and ktlint via Gradle plugin
+- [x] Android Studio project with Compose, Material 3, version catalog, KSP
+- [x] Package structure: `data/` (db, dao, repository), `domain/` (models, PR logic), `ui/` (screens, components, theme)
+- [x] Bottom navigation shell: Workout, History, Exercises, Settings (placeholder screens)
+- [x] GitHub Actions workflow: `./gradlew lint testDebugUnitTest assembleDebug`, upload debug APK as an artifact
+- [x] `.editorconfig` and ktlint via Gradle plugin
 
 Done when: CI is green and the debug APK installs and opens on your phone.
 

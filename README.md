@@ -4,7 +4,18 @@ A lightweight, offline-first Android app for logging workouts, tracking progress
 
 ## Status
 
-Planning. See the [v1 implementation plan](docs/IMPLEMENTATION_PLAN.md).
+Phase 0 (app skeleton and CI) of the [v1 implementation plan](docs/IMPLEMENTATION_PLAN.md).
+
+## Build
+
+Requires JDK 17 and the Android SDK (Android Studio sets both up).
+
+```
+./gradlew assembleDebug        # debug APK in app/build/outputs/apk/debug/
+./gradlew ktlintCheck lintDebug testDebugUnitTest
+```
+
+Every push builds a debug APK in GitHub Actions; download it from the run's artifacts.
 
 ## v1 scope
 
