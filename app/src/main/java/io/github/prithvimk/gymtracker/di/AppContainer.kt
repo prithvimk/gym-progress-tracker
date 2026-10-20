@@ -8,6 +8,4 @@ import android.content.Context
  */
 interface AppContainer
 
-class DefaultAppContainer(
-    @Suppress("unused") private val context: Context,
-) : AppContainer
+class DefaultAppContainer(@Suppress("unused") private val context: Context) : AppContainer

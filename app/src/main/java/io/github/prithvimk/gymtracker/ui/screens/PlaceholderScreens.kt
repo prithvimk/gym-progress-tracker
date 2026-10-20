@@ -40,11 +40,7 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun PlaceholderScreen(
-    @StringRes titleRes: Int,
-    @StringRes bodyRes: Int,
-    modifier: Modifier = Modifier,
-) {
+private fun PlaceholderScreen(@StringRes titleRes: Int, @StringRes bodyRes: Int, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.Center,
