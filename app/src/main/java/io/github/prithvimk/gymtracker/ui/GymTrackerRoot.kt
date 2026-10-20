@@ -18,6 +18,8 @@ import androidx.navigation.compose.rememberNavController
 import io.github.prithvimk.gymtracker.ui.exercises.ExercisesRoute
 import io.github.prithvimk.gymtracker.ui.navigation.TopLevelDestination
 import io.github.prithvimk.gymtracker.ui.navigation.icon
+import io.github.prithvimk.gymtracker.ui.navigation.tabEnterTransition
+import io.github.prithvimk.gymtracker.ui.navigation.tabExitTransition
 import io.github.prithvimk.gymtracker.ui.screens.HistoryScreen
 import io.github.prithvimk.gymtracker.ui.screens.SettingsScreen
 import io.github.prithvimk.gymtracker.ui.screens.WorkoutScreen
@@ -55,6 +57,10 @@ fun GymTrackerRoot() {
             navController = navController,
             startDestination = TopLevelDestination.START.route,
             modifier = Modifier.padding(innerPadding),
+            enterTransition = { tabEnterTransition },
+            exitTransition = { tabExitTransition },
+            popEnterTransition = { tabEnterTransition },
+            popExitTransition = { tabExitTransition },
         ) {
             composable(TopLevelDestination.WORKOUT.route) { WorkoutScreen() }
             composable(TopLevelDestination.HISTORY.route) { HistoryScreen() }
