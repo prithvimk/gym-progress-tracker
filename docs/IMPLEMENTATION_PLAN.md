@@ -31,6 +31,8 @@ WorkoutSet      id, workoutExerciseId, position, weightKg, reps, rpe?, type (WAR
 PersonalRecord  id, exerciseId, type (WEIGHT|REPS_AT_WEIGHT|E1RM|VOLUME), value, setId, achievedAt
 ```
 
+Every table also has `createdAt` / `updatedAt`. Exercises are archived, never deleted.
+
 Estimated 1RM uses Epley: `weight × (1 + reps / 30)`, counted only for working sets of 1 to 12 reps.
 
 ## Phase 0: Skeleton and CI
@@ -49,11 +51,11 @@ Done when: CI is green and the debug APK installs and opens on your phone.
 
 Goal: everything persists, with a usable list of exercises.
 
-- [ ] Room entities, DAOs and the database for the model above, with `exportSchema = true` and schemas committed
-- [ ] Repositories exposing `Flow`s
-- [ ] Seed about 60 common exercises (barbell, dumbbell, machine, cable, bodyweight) from a bundled JSON on first launch
-- [ ] Exercises screen: search, filter by muscle group, create, edit and archive custom exercises
-- [ ] DAO tests with an in-memory database (Robolectric or instrumented)
+- [x] Room entities, DAOs and the database for the model above, with `exportSchema = true` and schemas committed
+- [x] Repositories exposing `Flow`s
+- [x] Seed about 60 common exercises (barbell, dumbbell, machine, cable, bodyweight) from a bundled JSON on first launch (69 shipped; ids derive from each entry's key)
+- [x] Exercises screen: search, filter by muscle group, create, edit and archive custom exercises
+- [x] DAO tests with an in-memory database (Robolectric)
 
 Done when: you can add a custom exercise, kill the app, and it is still there.
 
