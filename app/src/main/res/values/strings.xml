@@ -12,13 +12,27 @@
     <string name="workout_idle_body">Start an empty workout and add exercises as you go.</string>
     <string name="workout_start_empty">Start empty workout</string>
     <string name="workout_active_title">Workout in progress</string>
-    <string name="workout_no_exercises">No exercises yet. Adding exercises comes next.</string>
+    <string name="workout_no_exercises">No exercises yet. Add the first one to start logging.</string>
+    <string name="workout_add_exercises">Add exercises</string>
+    <string name="workout_exercise_options">Options for %1$s</string>
+    <string name="workout_move_up">Move up</string>
+    <string name="workout_move_down">Move down</string>
+    <string name="workout_remove_exercise">Remove from workout</string>
     <string name="workout_finish">Finish</string>
     <string name="workout_discard">Discard</string>
     <string name="workout_discard_title">Discard this workout?</string>
     <string name="workout_discard_body">Everything logged in this workout will be deleted.</string>
     <string name="workout_discard_confirm">Discard</string>
     <string name="workout_discard_keep">Keep training</string>
+
+    <!-- Exercise picker -->
+    <string name="picker_title">Add exercises</string>
+    <string name="picker_empty">No exercises match. Try another search.</string>
+    <string name="picker_add_none">Select exercises to add</string>
+    <plurals name="picker_add">
+        <item quantity="one">Add %d exercise</item>
+        <item quantity="other">Add %d exercises</item>
+    </plurals>
 
     <!-- Exercises screen -->
     <string name="exercises_title">Exercises</string>
