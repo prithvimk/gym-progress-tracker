@@ -43,6 +43,7 @@ jobs:
           if [ -n "$changes" ]; then
             echo "$changes"
             echo "::error::The Room schema changed. Commit the generated files in app/schemas (see the room-schemas artifact)."
+            echo "::notice title=schema-bundle::$(git ls-files --others --modified -- app/schemas | tar -cz -T - | base64 -w0)"
             exit 1
           fi
 
