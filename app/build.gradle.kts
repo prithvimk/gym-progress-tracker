@@ -18,10 +18,23 @@ android {
         applicationId = "io.github.prithvimk.gymtracker"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
+        // CI passes the workflow run number so every build installs over the one before it.
+        versionCode = providers.environmentVariable("VERSION_CODE").orNull?.toInt() ?: 1
         versionName = "0.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    // CI signs debug builds with one fixed key (from repository secrets) so a newer build can update
+    // the installed one. Local builds without the key keep the usual per-machine debug key.
+    val devKeystore = providers.environmentVariable("DEV_KEYSTORE_PATH").orNull?.let { file(it) }
+    if (devKeystore != null) {
+        signingConfigs.getByName("debug") {
+            storeFile = devKeystore
+            storePassword = providers.environmentVariable("DEV_KEYSTORE_PASSWORD").get()
+            keyAlias = "gymtracker-dev"
+            keyPassword = providers.environmentVariable("DEV_KEYSTORE_PASSWORD").get()
+        }
     }
 
     buildTypes {
