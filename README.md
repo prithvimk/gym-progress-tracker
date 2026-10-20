@@ -4,7 +4,7 @@ A lightweight, offline-first Android app for logging workouts, tracking progress
 
 ## Status
 
-Phase 0 (app skeleton and CI) of the [v1 implementation plan](docs/IMPLEMENTATION_PLAN.md).
+Phase 2 (workout logging) of the [v1 implementation plan](docs/IMPLEMENTATION_PLAN.md).
 
 ## Build
 

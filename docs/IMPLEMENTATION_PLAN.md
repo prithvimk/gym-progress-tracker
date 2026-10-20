@@ -63,9 +63,9 @@ Done when: you can add a custom exercise, kill the app, and it is still there.
 
 Goal: log a real gym session faster than a notes app.
 
-- [ ] Start an empty workout; one active workout at a time, resumable after the app is killed
-- [ ] Add exercises, reorder them, remove them
-- [ ] Per set: weight, reps, optional RPE, set type, tap to mark complete
+- [x] Start an empty workout; one active workout at a time, resumable after the app is killed
+- [x] Add exercises, reorder them, remove them
+- [x] Per set: weight, reps, optional RPE, set type, tap to mark complete
 - [ ] "Last time" column: the matching set from the previous session of that exercise, and new sets prefilled from it
 - [ ] Quick steppers (+2.5 kg, +1 rep) and a numeric keypad that stays open between fields
 - [ ] Exercise notes and workout notes

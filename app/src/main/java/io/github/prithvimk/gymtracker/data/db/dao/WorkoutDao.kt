@@ -9,6 +9,7 @@ import io.github.prithvimk.gymtracker.data.db.entity.WorkoutExercise
 import io.github.prithvimk.gymtracker.data.db.entity.WorkoutSet
 import io.github.prithvimk.gymtracker.domain.model.Equipment
 import io.github.prithvimk.gymtracker.domain.model.MuscleGroup
+import io.github.prithvimk.gymtracker.domain.model.SetType
 import kotlinx.coroutines.flow.Flow
 
 /** An exercise in a workout, joined with the library entry it points at so the logger can show its name. */
@@ -114,6 +115,51 @@ interface WorkoutDao {
 
     @Query("SELECT * FROM workout_sets WHERE workoutExerciseId = :workoutExerciseId ORDER BY position")
     fun observeSets(workoutExerciseId: String): Flow<List<WorkoutSet>>
+
+    /** Every set in the workout, in exercise order and then set order. */
+    @Query(
+        """
+        SELECT s.* FROM workout_sets s JOIN workout_exercises we ON we.id = s.workoutExerciseId
+        WHERE we.workoutId = :workoutId
+        ORDER BY we.position, s.position
+        """
+    )
+    fun observeSetsForWorkout(workoutId: String): Flow<List<WorkoutSet>>
+
+    /**
+     * Appends a working set after the exercise's last one, copying that set's weight and reps (zero for
+     * the first set). One statement, so quick taps never share a position.
+     */
+    @Query(
+        """
+        INSERT INTO workout_sets
+            (id, workoutExerciseId, position, weightKg, reps, rpe, type, completedAt, createdAt, updatedAt)
+        SELECT :id, :workoutExerciseId, COALESCE(MAX(position) + 1, 0),
+            COALESCE((SELECT weightKg FROM workout_sets WHERE workoutExerciseId = :workoutExerciseId
+                ORDER BY position DESC LIMIT 1), 0),
+            COALESCE((SELECT reps FROM workout_sets WHERE workoutExerciseId = :workoutExerciseId
+                ORDER BY position DESC LIMIT 1), 0),
+            NULL, 'WORKING', NULL, :createdAt, :createdAt
+        FROM workout_sets WHERE workoutExerciseId = :workoutExerciseId
+        """
+    )
+    suspend fun appendSet(id: String, workoutExerciseId: String, createdAt: Long)
+
+    // Each field has its own update so edits to different fields of a set never overwrite each other.
+    @Query("UPDATE workout_sets SET weightKg = :weightKg, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun updateSetWeight(id: String, weightKg: Double, updatedAt: Long)
+
+    @Query("UPDATE workout_sets SET reps = :reps, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun updateSetReps(id: String, reps: Int, updatedAt: Long)
+
+    @Query("UPDATE workout_sets SET rpe = :rpe, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun updateSetRpe(id: String, rpe: Double?, updatedAt: Long)
+
+    @Query("UPDATE workout_sets SET type = :type, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun updateSetType(id: String, type: SetType, updatedAt: Long)
+
+    @Query("UPDATE workout_sets SET completedAt = :completedAt, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun updateSetCompletedAt(id: String, completedAt: Long?, updatedAt: Long)
 
     @Upsert
     suspend fun upsertSet(set: WorkoutSet)

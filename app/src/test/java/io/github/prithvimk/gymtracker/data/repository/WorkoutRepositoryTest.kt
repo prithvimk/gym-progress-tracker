@@ -8,6 +8,7 @@ import io.github.prithvimk.gymtracker.data.db.GymDatabase
 import io.github.prithvimk.gymtracker.data.db.withDefaults
 import io.github.prithvimk.gymtracker.data.exercise
 import io.github.prithvimk.gymtracker.data.inMemoryDatabase
+import io.github.prithvimk.gymtracker.domain.model.SetType
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
@@ -198,6 +199,118 @@ class WorkoutRepositoryTest {
         assertEquals(listOf("ohp"), exerciseOrder(second.id))
         assertEquals(0, repository.observeExerciseEntries(second.id).first().single().position)
     }
+
+    @Test
+    fun `the first set is empty and later sets copy the one before`() = runTest {
+        val benchId = startWithExercise("bench")
+
+        repository.addSet(benchId)
+        val first = setsOf(benchId).single()
+        assertEquals(0, first.position)
+        assertEquals(0.0, first.weightKg, 0.0)
+        assertEquals(0, first.reps)
+        assertEquals(SetType.WORKING, first.type)
+        assertNull(first.rpe)
+        assertNull(first.completedAt)
+
+        repository.updateSetWeight(first.id, 62.5)
+        repository.updateSetReps(first.id, 8)
+        repository.updateSetType(first.id, SetType.WARMUP)
+        repository.addSet(benchId)
+
+        val second = setsOf(benchId)[1]
+        assertEquals(1, second.position)
+        assertEquals(62.5, second.weightKg, 0.0)
+        assertEquals(8, second.reps)
+        assertEquals(SetType.WORKING, second.type)
+    }
+
+    @Test
+    fun `set fields update independently`() = runTest {
+        val benchId = startWithExercise("bench")
+        repository.addSet(benchId)
+        val setId = setsOf(benchId).single().id
+
+        repository.updateSetWeight(setId, 100.0)
+        repository.updateSetReps(setId, 5)
+        repository.updateSetRpe(setId, 8.5)
+        clock = 5_000L
+        repository.updateSetType(setId, SetType.FAILURE)
+
+        val set = setsOf(benchId).single()
+        assertEquals(100.0, set.weightKg, 0.0)
+        assertEquals(5, set.reps)
+        assertEquals(8.5, set.rpe!!, 0.0)
+        assertEquals(SetType.FAILURE, set.type)
+        assertEquals(5_000L, set.updatedAt)
+
+        repository.updateSetRpe(setId, null)
+        assertNull(setsOf(benchId).single().rpe)
+    }
+
+    @Test
+    fun `completing a set stamps the time and unticking clears it`() = runTest {
+        val benchId = startWithExercise("bench")
+        repository.addSet(benchId)
+        val setId = setsOf(benchId).single().id
+
+        clock = 7_000L
+        repository.setSetCompleted(setId, completed = true)
+        assertEquals(7_000L, setsOf(benchId).single().completedAt)
+
+        repository.setSetCompleted(setId, completed = false)
+        assertNull(setsOf(benchId).single().completedAt)
+    }
+
+    @Test
+    fun `a set added after a deletion goes to the end`() = runTest {
+        val benchId = startWithExercise("bench")
+        repeat(3) { repository.addSet(benchId) }
+        val ids = setsOf(benchId).map { it.id }
+
+        repository.deleteSet(ids[1])
+        repository.addSet(benchId)
+
+        val sets = setsOf(benchId)
+        assertEquals(listOf(ids[0], ids[2]), sets.take(2).map { it.id })
+        assertEquals(3, sets.last().position)
+    }
+
+    @Test
+    fun `workout sets come in exercise order and leave with their exercise`() = runTest {
+        val workout = repository.startEmptyWorkout()
+        repository.addExercises(workout.id, listOf("bench", "ohp"))
+        val (benchId, ohpId) = repository.observeExerciseEntries(workout.id).first().map { it.id }
+        repository.addSet(ohpId)
+        repository.addSet(benchId)
+        repository.addSet(benchId)
+        repository.moveExercise(workout.id, ohpId, offset = -1)
+
+        val owners = repository.observeSetsForWorkout(workout.id).first().map { it.workoutExerciseId }
+        assertEquals(listOf(ohpId, benchId, benchId), owners)
+
+        repository.deleteWorkoutExercise(benchId)
+        assertEquals(listOf(ohpId), repository.observeSetsForWorkout(workout.id).first().map { it.workoutExerciseId })
+    }
+
+    @Test
+    fun `sets of another workout are not included`() = runTest {
+        val firstBench = startWithExercise("bench")
+        repository.addSet(firstBench)
+        repository.finishWorkout(repository.observeActiveWorkout().first()!!.id)
+        val second = repository.startEmptyWorkout()
+
+        assertEquals(emptyList<String>(), repository.observeSetsForWorkout(second.id).first().map { it.id })
+    }
+
+    /** Starts a workout with one exercise and returns the workout exercise id. */
+    private suspend fun startWithExercise(exerciseId: String): String {
+        val workout = repository.startEmptyWorkout()
+        repository.addExercises(workout.id, listOf(exerciseId))
+        return repository.observeExerciseEntries(workout.id).first().single().id
+    }
+
+    private suspend fun setsOf(workoutExerciseId: String) = repository.observeSets(workoutExerciseId).first()
 
     private suspend fun exerciseOrder(workoutId: String): List<String> =
         repository.observeExerciseEntries(workoutId).first().map { it.exerciseId }

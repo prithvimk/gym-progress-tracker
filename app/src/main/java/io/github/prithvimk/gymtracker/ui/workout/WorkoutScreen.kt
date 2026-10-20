@@ -37,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -46,8 +47,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.prithvimk.gymtracker.R
 import io.github.prithvimk.gymtracker.data.db.dao.WorkoutExerciseEntry
 import io.github.prithvimk.gymtracker.data.db.entity.Workout
+import io.github.prithvimk.gymtracker.data.db.entity.WorkoutSet
 import io.github.prithvimk.gymtracker.domain.model.Equipment
 import io.github.prithvimk.gymtracker.domain.model.MuscleGroup
+import io.github.prithvimk.gymtracker.domain.model.SetType
 import io.github.prithvimk.gymtracker.ui.exercises.labelRes
 import io.github.prithvimk.gymtracker.ui.theme.GymTrackerTheme
 import kotlinx.coroutines.delay
@@ -60,6 +63,18 @@ fun WorkoutRoute(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val confirmingDiscard by viewModel.confirmingDiscard.collectAsStateWithLifecycle()
     val picker by viewModel.picker.collectAsStateWithLifecycle()
+    val pendingRemoval by viewModel.pendingRemoval.collectAsStateWithLifecycle()
+    val setActions =
+        remember(viewModel) {
+            SetActions(
+                onWeightChange = viewModel::onSetWeightChange,
+                onRepsChange = viewModel::onSetRepsChange,
+                onRpeChange = viewModel::onSetRpeChange,
+                onTypeChange = viewModel::onSetTypeChange,
+                onCompletedChange = viewModel::onSetCompletedChange,
+                onDelete = viewModel::onDeleteSet,
+            )
+        }
 
     WorkoutScreen(
         state = state,
@@ -69,6 +84,8 @@ fun WorkoutRoute(
         onAddExercisesClick = viewModel::onAddExercisesClick,
         onMoveExercise = viewModel::onMoveExercise,
         onRemoveExercise = viewModel::onRemoveExercise,
+        onAddSet = viewModel::onAddSet,
+        setActions = setActions,
         modifier = modifier,
     )
 
@@ -79,6 +96,24 @@ fun WorkoutRoute(
             onToggle = viewModel::onPickerToggle,
             onConfirm = viewModel::onPickerConfirm,
             onDismiss = viewModel::onPickerDismiss,
+        )
+    }
+
+    pendingRemoval?.let { pending ->
+        AlertDialog(
+            onDismissRequest = viewModel::onRemoveDismiss,
+            title = { Text(stringResource(R.string.workout_remove_title, pending.name)) },
+            text = { Text(pluralStringResource(R.plurals.workout_remove_body, pending.setCount, pending.setCount)) },
+            confirmButton = {
+                TextButton(onClick = viewModel::onRemoveConfirm) {
+                    Text(stringResource(R.string.workout_remove_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = viewModel::onRemoveDismiss) {
+                    Text(stringResource(R.string.workout_remove_keep))
+                }
+            },
         )
     }
 
@@ -110,6 +145,8 @@ fun WorkoutScreen(
     onAddExercisesClick: () -> Unit,
     onMoveExercise: (workoutExerciseId: String, offset: Int) -> Unit,
     onRemoveExercise: (workoutExerciseId: String) -> Unit,
+    onAddSet: (workoutExerciseId: String) -> Unit,
+    setActions: SetActions,
     modifier: Modifier = Modifier,
 ) {
     when (state) {
@@ -126,6 +163,8 @@ fun WorkoutScreen(
                 onAddExercisesClick = onAddExercisesClick,
                 onMoveExercise = onMoveExercise,
                 onRemoveExercise = onRemoveExercise,
+                onAddSet = onAddSet,
+                setActions = setActions,
                 modifier = modifier,
             )
     }
@@ -165,6 +204,8 @@ private fun ActiveContent(
     onAddExercisesClick: () -> Unit,
     onMoveExercise: (workoutExerciseId: String, offset: Int) -> Unit,
     onRemoveExercise: (workoutExerciseId: String) -> Unit,
+    onAddSet: (workoutExerciseId: String) -> Unit,
+    setActions: SetActions,
     modifier: Modifier = Modifier,
 ) {
     val startedAt = state.workout.startedAt
@@ -208,6 +249,9 @@ private fun ActiveContent(
             itemsIndexed(state.exercises, key = { _, entry -> entry.id }) { index, entry ->
                 ExerciseCard(
                     entry = entry,
+                    sets = state.sets[entry.id].orEmpty(),
+                    setActions = setActions,
+                    onAddSet = { onAddSet(entry.id) },
                     canMoveUp = index > 0,
                     canMoveDown = index < state.exercises.lastIndex,
                     onMove = { offset -> onMoveExercise(entry.id, offset) },
@@ -239,6 +283,9 @@ private fun ActiveContent(
 @Composable
 private fun ExerciseCard(
     entry: WorkoutExerciseEntry,
+    sets: List<WorkoutSet>,
+    setActions: SetActions,
+    onAddSet: () -> Unit,
     canMoveUp: Boolean,
     canMoveDown: Boolean,
     onMove: (offset: Int) -> Unit,
@@ -249,51 +296,59 @@ private fun ExerciseCard(
     val muscle = stringResource(entry.muscleGroup.labelRes)
     val equipment = stringResource(entry.equipment.labelRes)
     Card(modifier = modifier.fillMaxWidth()) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 8.dp, end = 4.dp),
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(entry.name, style = MaterialTheme.typography.titleMedium)
-                Text(
-                    text = stringResource(R.string.exercise_subtitle, muscle, equipment),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Box {
-                IconButton(onClick = { menuOpen = true }) {
-                    Icon(
-                        Icons.Filled.MoreVert,
-                        contentDescription = stringResource(R.string.workout_exercise_options, entry.name),
+        Column {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 8.dp, end = 4.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(entry.name, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        text = stringResource(R.string.exercise_subtitle, muscle, equipment),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.workout_move_up)) },
-                        enabled = canMoveUp,
-                        onClick = {
-                            menuOpen = false
-                            onMove(-1)
-                        },
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.workout_move_down)) },
-                        enabled = canMoveDown,
-                        onClick = {
-                            menuOpen = false
-                            onMove(1)
-                        },
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.workout_remove_exercise)) },
-                        onClick = {
-                            menuOpen = false
-                            onRemove()
-                        },
-                    )
+                Box {
+                    IconButton(onClick = { menuOpen = true }) {
+                        Icon(
+                            Icons.Filled.MoreVert,
+                            contentDescription = stringResource(R.string.workout_exercise_options, entry.name),
+                        )
+                    }
+                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.workout_move_up)) },
+                            enabled = canMoveUp,
+                            onClick = {
+                                menuOpen = false
+                                onMove(-1)
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.workout_move_down)) },
+                            enabled = canMoveDown,
+                            onClick = {
+                                menuOpen = false
+                                onMove(1)
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.workout_remove_exercise)) },
+                            onClick = {
+                                menuOpen = false
+                                onRemove()
+                            },
+                        )
+                    }
                 }
             }
+            SetTable(
+                sets = sets,
+                actions = setActions,
+                onAddSet = onAddSet,
+                modifier = Modifier.padding(start = 4.dp, end = 4.dp, bottom = 4.dp),
+            )
         }
     }
 }
@@ -312,6 +367,8 @@ private fun IdlePreview() {
             onAddExercisesClick = {},
             onMoveExercise = { _, _ -> },
             onRemoveExercise = {},
+            onAddSet = {},
+            setActions = SetActions.None,
         )
     }
 }
@@ -334,15 +391,36 @@ private fun ActivePreview() {
             WorkoutExerciseEntry("a", "bench", 0, "Barbell Bench Press", MuscleGroup.CHEST, Equipment.BARBELL),
             WorkoutExerciseEntry("b", "ohp", 1, "Overhead Press", MuscleGroup.SHOULDERS, Equipment.BARBELL),
         )
+    val sets =
+        mapOf(
+            "a" to
+                listOf(
+                    previewSet("s1", "a", 0, 40.0, 10, SetType.WARMUP, completedAt = 1L),
+                    previewSet("s2", "a", 1, 80.0, 8, SetType.WORKING, completedAt = 2L),
+                    previewSet("s3", "a", 2, 80.0, 8, SetType.WORKING, completedAt = null),
+                ),
+        )
     GymTrackerTheme(dynamicColor = false) {
         WorkoutScreen(
-            state = WorkoutUiState.Active(workout, exercises),
+            state = WorkoutUiState.Active(workout, exercises, sets),
             onStartClick = {},
             onFinishClick = {},
             onDiscardClick = {},
             onAddExercisesClick = {},
             onMoveExercise = { _, _ -> },
             onRemoveExercise = {},
+            onAddSet = {},
+            setActions = SetActions.None,
         )
     }
 }
+
+private fun previewSet(
+    id: String,
+    workoutExerciseId: String,
+    position: Int,
+    weightKg: Double,
+    reps: Int,
+    type: SetType,
+    completedAt: Long?,
+) = WorkoutSet(id, workoutExerciseId, position, weightKg, reps, null, type, completedAt, 0L, 0L)
