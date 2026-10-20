@@ -37,12 +37,29 @@ jobs:
       - name: Build debug APK
         run: ./gradlew assembleDebug
 
+      - name: Check Room schemas are committed
+        run: |
+          changes="$(git status --porcelain -- app/schemas)"
+          if [ -n "$changes" ]; then
+            echo "$changes"
+            echo "::error::The Room schema changed. Commit the generated files in app/schemas (see the room-schemas artifact)."
+            exit 1
+          fi
+
       - name: Upload debug APK
         uses: actions/upload-artifact@v5
         with:
           name: gym-tracker-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+
+      - name: Upload Room schemas
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: room-schemas
+          path: app/schemas/
+          if-no-files-found: ignore
 
       - name: Upload reports
         if: failure()

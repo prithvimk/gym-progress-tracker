@@ -6,6 +6,8 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
     alias(libs.plugins.ktlint)
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.room)
 }
 
 android {
@@ -46,6 +48,15 @@ android {
         compose = true
     }
 
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+        }
+    }
+
+    // Lets Robolectric migration tests read the exported Room schemas.
+    sourceSets.getByName("test").assets.srcDir("$projectDir/schemas")
+
     lint {
         warningsAsErrors = false
         abortOnError = true
@@ -56,6 +67,10 @@ kotlin {
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_17)
     }
+}
+
+room {
+    schemaDirectory("$projectDir/schemas")
 }
 
 ktlint {
@@ -76,8 +91,17 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.icons.core)
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    implementation(libs.kotlinx.serialization.json)
+    ksp(libs.androidx.room.compiler)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
 
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core.ktx)
+    testImplementation(libs.androidx.test.ext.junit.ktx)
+    testImplementation(libs.androidx.room.testing)
 }

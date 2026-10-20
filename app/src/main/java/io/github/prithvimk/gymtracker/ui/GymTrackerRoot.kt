@@ -15,9 +15,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import io.github.prithvimk.gymtracker.ui.exercises.ExercisesRoute
 import io.github.prithvimk.gymtracker.ui.navigation.TopLevelDestination
 import io.github.prithvimk.gymtracker.ui.navigation.icon
-import io.github.prithvimk.gymtracker.ui.screens.ExercisesScreen
 import io.github.prithvimk.gymtracker.ui.screens.HistoryScreen
 import io.github.prithvimk.gymtracker.ui.screens.SettingsScreen
 import io.github.prithvimk.gymtracker.ui.screens.WorkoutScreen
@@ -58,7 +58,7 @@ fun GymTrackerRoot() {
         ) {
             composable(TopLevelDestination.WORKOUT.route) { WorkoutScreen() }
             composable(TopLevelDestination.HISTORY.route) { HistoryScreen() }
-            composable(TopLevelDestination.EXERCISES.route) { ExercisesScreen() }
+            composable(TopLevelDestination.EXERCISES.route) { ExercisesRoute() }
             composable(TopLevelDestination.SETTINGS.route) { SettingsScreen() }
         }
     }
