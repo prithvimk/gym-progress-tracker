@@ -26,16 +26,16 @@ jobs:
         uses: gradle/actions/setup-gradle@v5
 
       - name: Ktlint
-        run: ./gradlew ktlintCheck 2>&1 | tee -a build-output.log
+        run: set -o pipefail; ./gradlew ktlintCheck 2>&1 | tee -a build-output.log
 
       - name: Lint
-        run: ./gradlew lintDebug 2>&1 | tee -a build-output.log
+        run: set -o pipefail; ./gradlew lintDebug 2>&1 | tee -a build-output.log
 
       - name: Unit tests
-        run: ./gradlew testDebugUnitTest 2>&1 | tee -a build-output.log
+        run: set -o pipefail; ./gradlew testDebugUnitTest 2>&1 | tee -a build-output.log
 
       - name: Build debug APK
-        run: ./gradlew assembleDebug 2>&1 | tee -a build-output.log
+        run: set -o pipefail; ./gradlew assembleDebug 2>&1 | tee -a build-output.log
 
       - name: Check Room schemas are committed
         run: |

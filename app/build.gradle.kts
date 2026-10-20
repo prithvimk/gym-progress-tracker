@@ -54,8 +54,10 @@ android {
         }
     }
 
-    // Lets Robolectric migration tests read the exported Room schemas.
-    sourceSets.getByName("test").assets.srcDir("$projectDir/schemas")
+    // Lets Robolectric migration tests read the exported Room schemas. Robolectric only sees the
+    // variant's merged assets (test source set assets never reach it), so the schemas ride along in
+    // debug builds. Release builds don't include them.
+    sourceSets.getByName("debug").assets.srcDir("$projectDir/schemas")
 
     lint {
         warningsAsErrors = false

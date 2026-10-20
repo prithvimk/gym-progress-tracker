@@ -17,6 +17,25 @@ interface WorkoutDao {
     @Query("SELECT * FROM workouts WHERE endedAt IS NULL ORDER BY startedAt DESC LIMIT 1")
     fun observeActive(): Flow<Workout?>
 
+    @Query("SELECT * FROM workouts WHERE endedAt IS NULL ORDER BY startedAt DESC LIMIT 1")
+    suspend fun getActive(): Workout?
+
+    /**
+     * Inserts an empty workout unless one is already active, as a single statement so two quick
+     * taps can never leave two active workouts.
+     */
+    @Query(
+        """
+        INSERT INTO workouts (id, routineId, startedAt, endedAt, notes, createdAt, updatedAt)
+        SELECT :id, NULL, :startedAt, NULL, '', :startedAt, :startedAt
+        WHERE NOT EXISTS (SELECT 1 FROM workouts WHERE endedAt IS NULL)
+        """
+    )
+    suspend fun insertEmptyIfNoneActive(id: String, startedAt: Long)
+
+    @Query("UPDATE workouts SET endedAt = :endedAt, updatedAt = :endedAt WHERE id = :id AND endedAt IS NULL")
+    suspend fun finish(id: String, endedAt: Long)
+
     @Query("SELECT * FROM workouts WHERE id = :id")
     suspend fun getById(id: String): Workout?
 

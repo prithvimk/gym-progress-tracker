@@ -4,9 +4,21 @@
     <string name="nav_history">History</string>
     <string name="nav_exercises">Exercises</string>
     <string name="nav_settings">Settings</string>
-    <string name="placeholder_workout">Start a workout here. Logging arrives in Phase 2.</string>
     <string name="placeholder_history">Past workouts will show up here.</string>
     <string name="placeholder_settings">Units, rest timer and export settings will live here.</string>
+
+    <!-- Workout screen -->
+    <string name="workout_idle_title">Ready to train?</string>
+    <string name="workout_idle_body">Start an empty workout and add exercises as you go.</string>
+    <string name="workout_start_empty">Start empty workout</string>
+    <string name="workout_active_title">Workout in progress</string>
+    <string name="workout_no_exercises">No exercises yet. Adding exercises comes next.</string>
+    <string name="workout_finish">Finish</string>
+    <string name="workout_discard">Discard</string>
+    <string name="workout_discard_title">Discard this workout?</string>
+    <string name="workout_discard_body">Everything logged in this workout will be deleted.</string>
+    <string name="workout_discard_confirm">Discard</string>
+    <string name="workout_discard_keep">Keep training</string>
 
     <!-- Exercises screen -->
     <string name="exercises_title">Exercises</string>
