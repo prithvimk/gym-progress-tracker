@@ -168,11 +168,9 @@ class ExercisesViewModel(private val repository: ExerciseRepository) : ViewModel
     }
 }
 
-private fun ExerciseSaveResult.toEditorError(): EditorError? {
-    return when (this) {
-        is ExerciseSaveResult.Saved -> null
-        ExerciseSaveResult.BlankName -> EditorError.BlankName
-        is ExerciseSaveResult.DuplicateName -> EditorError.DuplicateName(existingName)
-        ExerciseSaveResult.NotEditable -> EditorError.NotEditable
-    }
+private fun ExerciseSaveResult.toEditorError(): EditorError? = when (this) {
+    is ExerciseSaveResult.Saved -> null
+    ExerciseSaveResult.BlankName -> EditorError.BlankName
+    is ExerciseSaveResult.DuplicateName -> EditorError.DuplicateName(existingName)
+    ExerciseSaveResult.NotEditable -> EditorError.NotEditable
 }

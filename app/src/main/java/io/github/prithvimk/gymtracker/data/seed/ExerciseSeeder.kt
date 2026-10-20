@@ -6,10 +6,10 @@ import io.github.prithvimk.gymtracker.data.db.dao.ExerciseDao
 import io.github.prithvimk.gymtracker.data.db.entity.Exercise
 import io.github.prithvimk.gymtracker.domain.model.Equipment
 import io.github.prithvimk.gymtracker.domain.model.MuscleGroup
+import java.util.UUID
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
-import java.util.UUID
 
 /** One entry of `assets/seed/exercises.json`. [key] is permanent: it determines the exercise id. */
 @Serializable
@@ -65,15 +65,13 @@ fun parseSeedExercises(json: String): List<SeedExercise> = seedJson.decodeFromSt
 
 fun seedExerciseId(key: String): String = UUID.nameUUIDFromBytes("gymtracker-seed:$key".toByteArray()).toString()
 
-internal fun SeedExercise.toExercise(timestamp: Long): Exercise {
-    return Exercise(
-        id = seedExerciseId(key),
-        name = name,
-        muscleGroup = muscleGroup,
-        equipment = equipment,
-        isCustom = false,
-        archived = false,
-        createdAt = timestamp,
-        updatedAt = timestamp,
-    )
-}
+internal fun SeedExercise.toExercise(timestamp: Long): Exercise = Exercise(
+    id = seedExerciseId(key),
+    name = name,
+    muscleGroup = muscleGroup,
+    equipment = equipment,
+    isCustom = false,
+    archived = false,
+    createdAt = timestamp,
+    updatedAt = timestamp,
+)

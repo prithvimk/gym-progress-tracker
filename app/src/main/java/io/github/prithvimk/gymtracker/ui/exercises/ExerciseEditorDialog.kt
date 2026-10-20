@@ -150,10 +150,8 @@ private fun <T> ChipRow(
 }
 
 @Composable
-private fun errorText(error: EditorError): String {
-    return when (error) {
-        EditorError.BlankName -> stringResource(R.string.editor_error_blank)
-        is EditorError.DuplicateName -> stringResource(R.string.editor_error_duplicate, error.existingName)
-        EditorError.NotEditable -> stringResource(R.string.editor_error_not_editable)
-    }
+private fun errorText(error: EditorError): String = when (error) {
+    EditorError.BlankName -> stringResource(R.string.editor_error_blank)
+    is EditorError.DuplicateName -> stringResource(R.string.editor_error_duplicate, error.existingName)
+    EditorError.NotEditable -> stringResource(R.string.editor_error_not_editable)
 }

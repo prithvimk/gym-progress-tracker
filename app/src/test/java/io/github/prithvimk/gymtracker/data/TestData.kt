@@ -31,25 +31,22 @@ fun exercise(
     equipment: Equipment = Equipment.BARBELL,
     isCustom: Boolean = true,
     archived: Boolean = false,
-): Exercise {
-    return Exercise(
-        id = id,
-        name = name,
-        muscleGroup = muscleGroup,
-        equipment = equipment,
-        isCustom = isCustom,
-        archived = archived,
-        createdAt = 0L,
-        updatedAt = 0L,
-    )
-}
+): Exercise = Exercise(
+    id = id,
+    name = name,
+    muscleGroup = muscleGroup,
+    equipment = equipment,
+    isCustom = isCustom,
+    archived = archived,
+    createdAt = 0L,
+    updatedAt = 0L,
+)
 
-fun routine(id: String, name: String = "Routine $id"): Routine {
-    return Routine(id = id, name = name, notes = "", createdAt = 0L, updatedAt = 0L)
-}
+fun routine(id: String, name: String = "Routine $id"): Routine =
+    Routine(id = id, name = name, notes = "", createdAt = 0L, updatedAt = 0L)
 
-fun routineExercise(id: String, routineId: String, exerciseId: String, position: Int = 0): RoutineExercise {
-    return RoutineExercise(
+fun routineExercise(id: String, routineId: String, exerciseId: String, position: Int = 0): RoutineExercise =
+    RoutineExercise(
         id = id,
         routineId = routineId,
         exerciseId = exerciseId,
@@ -61,22 +58,19 @@ fun routineExercise(id: String, routineId: String, exerciseId: String, position:
         createdAt = 0L,
         updatedAt = 0L,
     )
-}
 
-fun workout(id: String, startedAt: Long = 0L, endedAt: Long? = null, routineId: String? = null): Workout {
-    return Workout(
-        id = id,
-        routineId = routineId,
-        startedAt = startedAt,
-        endedAt = endedAt,
-        notes = "",
-        createdAt = 0L,
-        updatedAt = 0L,
-    )
-}
+fun workout(id: String, startedAt: Long = 0L, endedAt: Long? = null, routineId: String? = null): Workout = Workout(
+    id = id,
+    routineId = routineId,
+    startedAt = startedAt,
+    endedAt = endedAt,
+    notes = "",
+    createdAt = 0L,
+    updatedAt = 0L,
+)
 
-fun workoutExercise(id: String, workoutId: String, exerciseId: String, position: Int = 0): WorkoutExercise {
-    return WorkoutExercise(
+fun workoutExercise(id: String, workoutId: String, exerciseId: String, position: Int = 0): WorkoutExercise =
+    WorkoutExercise(
         id = id,
         workoutId = workoutId,
         exerciseId = exerciseId,
@@ -85,10 +79,9 @@ fun workoutExercise(id: String, workoutId: String, exerciseId: String, position:
         createdAt = 0L,
         updatedAt = 0L,
     )
-}
 
-fun workoutSet(id: String, workoutExerciseId: String, position: Int = 0, weightKg: Double = 60.0): WorkoutSet {
-    return WorkoutSet(
+fun workoutSet(id: String, workoutExerciseId: String, position: Int = 0, weightKg: Double = 60.0): WorkoutSet =
+    WorkoutSet(
         id = id,
         workoutExerciseId = workoutExerciseId,
         position = position,
@@ -100,4 +93,3 @@ fun workoutSet(id: String, workoutExerciseId: String, position: Int = 0, weightK
         createdAt = 0L,
         updatedAt = 0L,
     )
-}

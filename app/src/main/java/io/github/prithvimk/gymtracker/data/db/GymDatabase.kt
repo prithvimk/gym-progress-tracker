@@ -46,9 +46,8 @@ abstract class GymDatabase : RoomDatabase() {
     companion object {
         const val NAME = "gym-tracker.db"
 
-        fun create(context: Context): GymDatabase {
-            return Room.databaseBuilder(context, GymDatabase::class.java, NAME).withDefaults().build()
-        }
+        fun create(context: Context): GymDatabase =
+            Room.databaseBuilder(context, GymDatabase::class.java, NAME).withDefaults().build()
     }
 }
 

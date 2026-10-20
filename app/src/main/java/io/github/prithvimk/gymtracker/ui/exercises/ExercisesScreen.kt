@@ -249,15 +249,13 @@ private fun previewExercise(
     muscleGroup: MuscleGroup,
     equipment: Equipment,
     isCustom: Boolean,
-): Exercise {
-    return Exercise(
-        id = id,
-        name = name,
-        muscleGroup = muscleGroup,
-        equipment = equipment,
-        isCustom = isCustom,
-        archived = false,
-        createdAt = 0L,
-        updatedAt = 0L,
-    )
-}
+): Exercise = Exercise(
+    id = id,
+    name = name,
+    muscleGroup = muscleGroup,
+    equipment = equipment,
+    isCustom = isCustom,
+    archived = false,
+    createdAt = 0L,
+    updatedAt = 0L,
+)

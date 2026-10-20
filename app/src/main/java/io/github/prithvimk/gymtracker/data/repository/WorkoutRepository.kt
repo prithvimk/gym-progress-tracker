@@ -22,9 +22,8 @@ class WorkoutRepository(
 
     fun observeSets(workoutExerciseId: String): Flow<List<WorkoutSet>> = workoutDao.observeSets(workoutExerciseId)
 
-    fun observePersonalRecords(exerciseId: String): Flow<List<PersonalRecord>> {
-        return personalRecordDao.observeForExercise(exerciseId)
-    }
+    fun observePersonalRecords(exerciseId: String): Flow<List<PersonalRecord>> =
+        personalRecordDao.observeForExercise(exerciseId)
 
     suspend fun saveWorkout(workout: Workout) {
         workoutDao.upsert(workout.copy(updatedAt = now()))

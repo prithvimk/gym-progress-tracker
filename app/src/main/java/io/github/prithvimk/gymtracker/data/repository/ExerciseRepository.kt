@@ -4,8 +4,8 @@ import io.github.prithvimk.gymtracker.data.db.dao.ExerciseDao
 import io.github.prithvimk.gymtracker.data.db.entity.Exercise
 import io.github.prithvimk.gymtracker.domain.model.Equipment
 import io.github.prithvimk.gymtracker.domain.model.MuscleGroup
-import kotlinx.coroutines.flow.Flow
 import java.util.UUID
+import kotlinx.coroutines.flow.Flow
 
 sealed interface ExerciseSaveResult {
     data class Saved(val id: String) : ExerciseSaveResult
