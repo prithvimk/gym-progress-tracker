@@ -26,16 +26,16 @@ jobs:
         uses: gradle/actions/setup-gradle@v5
 
       - name: Ktlint
-        run: ./gradlew ktlintCheck
+        run: ./gradlew ktlintCheck 2>&1 | tee -a build-output.log
 
       - name: Lint
-        run: ./gradlew lintDebug
+        run: ./gradlew lintDebug 2>&1 | tee -a build-output.log
 
       - name: Unit tests
-        run: ./gradlew testDebugUnitTest
+        run: ./gradlew testDebugUnitTest 2>&1 | tee -a build-output.log
 
       - name: Build debug APK
-        run: ./gradlew assembleDebug
+        run: ./gradlew assembleDebug 2>&1 | tee -a build-output.log
 
       - name: Check Room schemas are committed
         run: |
@@ -60,6 +60,16 @@ jobs:
           name: room-schemas
           path: app/schemas/
           if-no-files-found: ignore
+
+      - name: Summarize failures
+        if: failure()
+        run: |
+          # Collect compiler, ktlint, lint and test errors into one annotation, readable in the PR checks.
+          touch build-output.log
+          summary="$(grep -E -A4 '^e: |FAILED|What went wrong|Error: |\.kt:[0-9]+:[0-9]+' build-output.log | head -c 30000)"
+          summary="${summary//'%'/'%25'}"
+          summary="${summary//$'\n'/'%0A'}"
+          echo "::error title=Build failures::${summary:-No error lines found; check the full log.}"
 
       - name: Upload reports
         if: failure()
