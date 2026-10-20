@@ -6,6 +6,58 @@
     <string name="nav_settings">Settings</string>
     <string name="placeholder_workout">Start a workout here. Logging arrives in Phase 2.</string>
     <string name="placeholder_history">Past workouts will show up here.</string>
-    <string name="placeholder_exercises">Your exercise library arrives in Phase 1.</string>
     <string name="placeholder_settings">Units, rest timer and export settings will live here.</string>
+
+    <!-- Exercises screen -->
+    <string name="exercises_title">Exercises</string>
+    <string name="exercises_search">Search exercises</string>
+    <string name="exercises_clear_search">Clear search</string>
+    <string name="exercises_filter_all">All</string>
+    <string name="exercises_show_archived">Show archived</string>
+    <string name="exercises_new">New exercise</string>
+    <string name="exercises_empty">No exercises match. Try another search or muscle group.</string>
+    <string name="exercises_custom_tag">Custom</string>
+    <string name="exercises_archived_tag">Archived</string>
+    <string name="exercise_subtitle">%1$s · %2$s</string>
+
+    <!-- Exercise editor -->
+    <string name="editor_title_new">New exercise</string>
+    <string name="editor_title_edit">Edit exercise</string>
+    <string name="editor_name">Name</string>
+    <string name="editor_muscle_group">Muscle group</string>
+    <string name="editor_equipment">Equipment</string>
+    <string name="editor_save">Save</string>
+    <string name="editor_cancel">Cancel</string>
+    <string name="editor_close">Close</string>
+    <string name="editor_archive">Archive</string>
+    <string name="editor_restore">Restore</string>
+    <string name="editor_builtin_note">Built-in exercises keep their name and details. Archive one to hide it from the list.</string>
+    <string name="editor_error_blank">Give the exercise a name.</string>
+    <string name="editor_error_duplicate">%1$s already exists. If you can\'t see it, turn on Show archived.</string>
+    <string name="editor_error_not_editable">This exercise is built in, so only archiving is available.</string>
+
+    <!-- Muscle groups -->
+    <string name="muscle_chest">Chest</string>
+    <string name="muscle_back">Back</string>
+    <string name="muscle_shoulders">Shoulders</string>
+    <string name="muscle_biceps">Biceps</string>
+    <string name="muscle_triceps">Triceps</string>
+    <string name="muscle_forearms">Forearms</string>
+    <string name="muscle_quads">Quads</string>
+    <string name="muscle_hamstrings">Hamstrings</string>
+    <string name="muscle_glutes">Glutes</string>
+    <string name="muscle_calves">Calves</string>
+    <string name="muscle_core">Core</string>
+    <string name="muscle_full_body">Full body</string>
+    <string name="muscle_other">Other</string>
+
+    <!-- Equipment -->
+    <string name="equipment_barbell">Barbell</string>
+    <string name="equipment_dumbbell">Dumbbell</string>
+    <string name="equipment_machine">Machine</string>
+    <string name="equipment_cable">Cable</string>
+    <string name="equipment_bodyweight">Bodyweight</string>
+    <string name="equipment_kettlebell">Kettlebell</string>
+    <string name="equipment_band">Band</string>
+    <string name="equipment_other">Other</string>
 </resources>

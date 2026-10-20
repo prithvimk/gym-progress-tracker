@@ -30,11 +30,6 @@ fun HistoryScreen(modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun ExercisesScreen(modifier: Modifier = Modifier) {
-    PlaceholderScreen(R.string.nav_exercises, R.string.placeholder_exercises, modifier)
-}
-
-@Composable
 fun SettingsScreen(modifier: Modifier = Modifier) {
     PlaceholderScreen(R.string.nav_settings, R.string.placeholder_settings, modifier)
 }
