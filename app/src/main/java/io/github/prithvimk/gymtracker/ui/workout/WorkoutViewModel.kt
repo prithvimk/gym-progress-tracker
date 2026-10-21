@@ -102,6 +102,10 @@ class WorkoutViewModel(private val workoutRepository: WorkoutRepository, exercis
     private val _summary = MutableStateFlow<WorkoutSummary?>(null)
     val summary: StateFlow<WorkoutSummary?> = _summary.asStateFlow()
 
+    // The keypad's edit, or null while it is closed.
+    private val _keypad = MutableStateFlow<KeypadState?>(null)
+    val keypad: StateFlow<KeypadState?> = _keypad.asStateFlow()
+
     private val _pendingRemoval = MutableStateFlow<PendingRemoval?>(null)
     val pendingRemoval: StateFlow<PendingRemoval?> = _pendingRemoval.asStateFlow()
 
@@ -119,6 +123,7 @@ class WorkoutViewModel(private val workoutRepository: WorkoutRepository, exercis
 
     fun onFinishClick() {
         val active = state.value as? WorkoutUiState.Active ?: return
+        _keypad.value = null
         viewModelScope.launch {
             workoutRepository.finishWorkout(active.workout.id)
             _summary.value = workoutRepository.summarize(active.workout.id)
@@ -139,6 +144,7 @@ class WorkoutViewModel(private val workoutRepository: WorkoutRepository, exercis
 
     fun onDiscardConfirm() {
         _confirmingDiscard.value = false
+        _keypad.value = null
         val active = state.value as? WorkoutUiState.Active ?: return
         viewModelScope.launch { workoutRepository.deleteWorkout(active.workout.id) }
     }
@@ -187,6 +193,9 @@ class WorkoutViewModel(private val workoutRepository: WorkoutRepository, exercis
     fun onRemoveConfirm() {
         val pending = _pendingRemoval.value ?: return
         _pendingRemoval.value = null
+        val active = state.value as? WorkoutUiState.Active
+        val removedSetIds = active?.sets?.get(pending.workoutExerciseId).orEmpty().map { it.id }
+        if (_keypad.value?.target?.setId in removedSetIds) _keypad.value = null
         viewModelScope.launch { workoutRepository.deleteWorkoutExercise(pending.workoutExerciseId) }
     }
 
@@ -228,7 +237,55 @@ class WorkoutViewModel(private val workoutRepository: WorkoutRepository, exercis
     }
 
     fun onDeleteSet(setId: String) {
+        if (_keypad.value?.target?.setId == setId) _keypad.value = null
         viewModelScope.launch { workoutRepository.deleteSet(setId) }
+    }
+
+    /** Opens the keypad on a set's field, starting from what is stored. */
+    fun onFieldClick(setId: String, field: SetField) {
+        val set = activeSets().firstOrNull { it.id == setId } ?: return
+        _keypad.value = KeypadState(SetFieldRef(setId, field), set.fieldText(field))
+    }
+
+    fun onKeypadKey(key: KeypadKey) {
+        editKeypad { it.press(key) }
+    }
+
+    fun onKeypadStep(up: Boolean) {
+        editKeypad { it.stepped(up) }
+    }
+
+    /** Moves the keypad on to the next field, or closes it after the last set. */
+    fun onKeypadNext() {
+        val current = _keypad.value ?: return
+        val sets = activeSets()
+        val next = nextField(sets.map { it.id }, current.target)
+        val nextSet = next?.let { ref -> sets.firstOrNull { it.id == ref.setId } }
+        _keypad.value = if (next != null && nextSet != null) KeypadState(next, nextSet.fieldText(next.field)) else null
+    }
+
+    fun onKeypadHide() {
+        _keypad.value = null
+    }
+
+    /** Applies an edit and saves the result whenever it is a value the field accepts. */
+    private fun editKeypad(edit: (KeypadState) -> KeypadState) {
+        val current = _keypad.value ?: return
+        val next = edit(current)
+        _keypad.value = next
+        if (next.text == current.text) return
+        val setId = next.target.setId
+        when (next.field) {
+            SetField.WEIGHT -> parseWeight(next.text).ifValid { onSetWeightChange(setId, it) }
+            SetField.REPS -> parseReps(next.text).ifValid { onSetRepsChange(setId, it) }
+            SetField.RPE -> parseRpe(next.text).ifValid { onSetRpeChange(setId, it) }
+        }
+    }
+
+    /** Every set in the active workout, in the order the logger shows them. */
+    private fun activeSets(): List<WorkoutSet> {
+        val active = state.value as? WorkoutUiState.Active ?: return emptyList()
+        return active.exercises.flatMap { active.sets[it.id].orEmpty() }
     }
 
     companion object {
@@ -242,6 +299,10 @@ class WorkoutViewModel(private val workoutRepository: WorkoutRepository, exercis
                 }
             }
     }
+}
+
+private inline fun <T> FieldInput<T>.ifValid(save: (T) -> Unit) {
+    if (this is FieldInput.Valid) save(value)
 }
 
 /** Adds [id] to the end, or removes it if it is already there. */
