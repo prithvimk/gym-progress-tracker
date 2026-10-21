@@ -24,6 +24,35 @@
     <string name="workout_discard_body">Everything logged in this workout will be deleted.</string>
     <string name="workout_discard_confirm">Discard</string>
     <string name="workout_discard_keep">Keep training</string>
+    <string name="workout_remove_title">Remove %1$s?</string>
+    <plurals name="workout_remove_body">
+        <item quantity="one">Its %d set will be deleted.</item>
+        <item quantity="other">Its %d sets will be deleted.</item>
+    </plurals>
+    <string name="workout_remove_confirm">Remove</string>
+    <string name="workout_remove_keep">Keep</string>
+
+    <!-- Sets -->
+    <string name="set_header_set">Set</string>
+    <string name="set_header_weight">kg</string>
+    <string name="set_header_reps">Reps</string>
+    <string name="set_header_rpe">RPE</string>
+    <string name="set_header_done">Done</string>
+    <string name="set_add">Add set</string>
+    <string name="set_options">Options for set %1$s</string>
+    <string name="set_weight_description">Set %1$s weight in kg</string>
+    <string name="set_reps_description">Set %1$s reps</string>
+    <string name="set_rpe_description">Set %1$s RPE, optional</string>
+    <string name="set_complete_description">Set %1$s done</string>
+    <string name="set_delete">Delete set</string>
+    <string name="set_type_warmup">Warm-up</string>
+    <string name="set_type_working">Working</string>
+    <string name="set_type_drop">Drop set</string>
+    <string name="set_type_failure">Failure</string>
+    <string name="set_short_warmup">W</string>
+    <string name="set_short_working">S</string>
+    <string name="set_short_drop">D</string>
+    <string name="set_short_failure">F</string>
 
     <!-- Exercise picker -->
     <string name="picker_title">Add exercises</string>

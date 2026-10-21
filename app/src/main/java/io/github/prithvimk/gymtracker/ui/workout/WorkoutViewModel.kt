@@ -9,8 +9,10 @@ import io.github.prithvimk.gymtracker.GymTrackerApp
 import io.github.prithvimk.gymtracker.data.db.dao.WorkoutExerciseEntry
 import io.github.prithvimk.gymtracker.data.db.entity.Exercise
 import io.github.prithvimk.gymtracker.data.db.entity.Workout
+import io.github.prithvimk.gymtracker.data.db.entity.WorkoutSet
 import io.github.prithvimk.gymtracker.data.repository.ExerciseRepository
 import io.github.prithvimk.gymtracker.data.repository.WorkoutRepository
+import io.github.prithvimk.gymtracker.domain.model.SetType
 import io.github.prithvimk.gymtracker.ui.exercises.ExerciseFilter
 import io.github.prithvimk.gymtracker.ui.exercises.filteredBy
 import java.util.Locale
@@ -22,7 +24,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -32,8 +33,16 @@ sealed interface WorkoutUiState {
 
     data object Idle : WorkoutUiState
 
-    data class Active(val workout: Workout, val exercises: List<WorkoutExerciseEntry> = emptyList()) : WorkoutUiState
+    /** [sets] maps each workout exercise id to its sets, in order. */
+    data class Active(
+        val workout: Workout,
+        val exercises: List<WorkoutExerciseEntry> = emptyList(),
+        val sets: Map<String, List<WorkoutSet>> = emptyMap(),
+    ) : WorkoutUiState
 }
+
+/** An exercise waiting on confirmation before it and its [setCount] sets are removed. */
+data class PendingRemoval(val workoutExerciseId: String, val name: String, val setCount: Int)
 
 /** The add-exercises sheet. [selectedIds] keeps tap order, which is the order the exercises are added in. */
 data class ExercisePickerState(
@@ -53,12 +62,20 @@ class WorkoutViewModel(private val workoutRepository: WorkoutRepository, exercis
                 if (workout == null) {
                     flowOf(WorkoutUiState.Idle)
                 } else {
-                    workoutRepository.observeExerciseEntries(workout.id).map { WorkoutUiState.Active(workout, it) }
+                    combine(
+                        workoutRepository.observeExerciseEntries(workout.id),
+                        workoutRepository.observeSetsForWorkout(workout.id),
+                    ) { exercises, sets ->
+                        WorkoutUiState.Active(workout, exercises, sets.groupBy { it.workoutExerciseId })
+                    }
                 }
             }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), WorkoutUiState.Loading)
 
     private val _confirmingDiscard = MutableStateFlow(false)
     val confirmingDiscard: StateFlow<Boolean> = _confirmingDiscard.asStateFlow()
+
+    private val _pendingRemoval = MutableStateFlow<PendingRemoval?>(null)
+    val pendingRemoval: StateFlow<PendingRemoval?> = _pendingRemoval.asStateFlow()
 
     // Null while the sheet is closed. Query and selection live here so typing never waits on the database.
     private val pickerInput = MutableStateFlow<ExercisePickerState?>(null)
@@ -120,8 +137,54 @@ class WorkoutViewModel(private val workoutRepository: WorkoutRepository, exercis
         viewModelScope.launch { workoutRepository.moveExercise(active.workout.id, workoutExerciseId, offset) }
     }
 
+    /** Removes the exercise straight away if it has no sets; otherwise asks first. */
     fun onRemoveExercise(workoutExerciseId: String) {
-        viewModelScope.launch { workoutRepository.deleteWorkoutExercise(workoutExerciseId) }
+        val active = state.value as? WorkoutUiState.Active ?: return
+        val setCount = active.sets[workoutExerciseId].orEmpty().size
+        if (setCount == 0) {
+            viewModelScope.launch { workoutRepository.deleteWorkoutExercise(workoutExerciseId) }
+        } else {
+            val name = active.exercises.firstOrNull { it.id == workoutExerciseId }?.name ?: return
+            _pendingRemoval.value = PendingRemoval(workoutExerciseId, name, setCount)
+        }
+    }
+
+    fun onRemoveConfirm() {
+        val pending = _pendingRemoval.value ?: return
+        _pendingRemoval.value = null
+        viewModelScope.launch { workoutRepository.deleteWorkoutExercise(pending.workoutExerciseId) }
+    }
+
+    fun onRemoveDismiss() {
+        _pendingRemoval.value = null
+    }
+
+    fun onAddSet(workoutExerciseId: String) {
+        viewModelScope.launch { workoutRepository.addSet(workoutExerciseId) }
+    }
+
+    fun onSetWeightChange(setId: String, weightKg: Double) {
+        viewModelScope.launch { workoutRepository.updateSetWeight(setId, weightKg) }
+    }
+
+    fun onSetRepsChange(setId: String, reps: Int) {
+        viewModelScope.launch { workoutRepository.updateSetReps(setId, reps) }
+    }
+
+    fun onSetRpeChange(setId: String, rpe: Double?) {
+        viewModelScope.launch { workoutRepository.updateSetRpe(setId, rpe) }
+    }
+
+    fun onSetTypeChange(setId: String, type: SetType) {
+        viewModelScope.launch { workoutRepository.updateSetType(setId, type) }
+    }
+
+    fun onSetCompletedChange(setId: String, completed: Boolean) {
+        viewModelScope.launch { workoutRepository.setSetCompleted(setId, completed) }
+    }
+
+    fun onDeleteSet(setId: String) {
+        viewModelScope.launch { workoutRepository.deleteSet(setId) }
     }
 
     companion object {

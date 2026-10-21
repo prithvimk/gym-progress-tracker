@@ -7,6 +7,7 @@ import io.github.prithvimk.gymtracker.data.db.entity.PersonalRecord
 import io.github.prithvimk.gymtracker.data.db.entity.Workout
 import io.github.prithvimk.gymtracker.data.db.entity.WorkoutExercise
 import io.github.prithvimk.gymtracker.data.db.entity.WorkoutSet
+import io.github.prithvimk.gymtracker.domain.model.SetType
 import java.util.UUID
 import kotlinx.coroutines.flow.Flow
 
@@ -44,6 +45,35 @@ class WorkoutRepository(
     /** Moves an exercise [offset] places within its workout; negative moves it up. */
     suspend fun moveExercise(workoutId: String, workoutExerciseId: String, offset: Int) {
         workoutDao.moveExercise(workoutId, workoutExerciseId, offset, updatedAt = now())
+    }
+
+    fun observeSetsForWorkout(workoutId: String): Flow<List<WorkoutSet>> = workoutDao.observeSetsForWorkout(workoutId)
+
+    /** Adds a working set to the end of the exercise, prefilled from the set before it. */
+    suspend fun addSet(workoutExerciseId: String) {
+        workoutDao.appendSet(id = newId(), workoutExerciseId = workoutExerciseId, createdAt = now())
+    }
+
+    suspend fun updateSetWeight(setId: String, weightKg: Double) {
+        workoutDao.updateSetWeight(setId, weightKg, updatedAt = now())
+    }
+
+    suspend fun updateSetReps(setId: String, reps: Int) {
+        workoutDao.updateSetReps(setId, reps, updatedAt = now())
+    }
+
+    suspend fun updateSetRpe(setId: String, rpe: Double?) {
+        workoutDao.updateSetRpe(setId, rpe, updatedAt = now())
+    }
+
+    suspend fun updateSetType(setId: String, type: SetType) {
+        workoutDao.updateSetType(setId, type, updatedAt = now())
+    }
+
+    /** Marks the set complete now, or clears the mark. */
+    suspend fun setSetCompleted(setId: String, completed: Boolean) {
+        val time = now()
+        workoutDao.updateSetCompletedAt(setId, completedAt = if (completed) time else null, updatedAt = time)
     }
 
     fun observeWorkouts(): Flow<List<Workout>> = workoutDao.observeAll()
