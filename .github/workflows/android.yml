@@ -13,6 +13,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      # Pushes to main update the dev release.
+      contents: write
+    env:
+      VERSION_CODE: ${{ github.run_number }}
     steps:
       - uses: actions/checkout@v5
 
@@ -24,6 +29,20 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v5
+
+      # Without the secret (fork PRs, or before it is added) builds fall back to a throwaway debug key.
+      - name: Set up dev signing key
+        env:
+          DEV_KEYSTORE_BASE64: ${{ secrets.DEV_KEYSTORE_BASE64 }}
+          DEV_KEYSTORE_PASSWORD: ${{ secrets.DEV_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -z "$DEV_KEYSTORE_BASE64" ]; then
+            echo "::warning::DEV_KEYSTORE_BASE64 is not set, so this APK cannot update an installed dev build."
+            exit 0
+          fi
+          echo "$DEV_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/dev.keystore"
+          echo "DEV_KEYSTORE_PATH=$RUNNER_TEMP/dev.keystore" >> "$GITHUB_ENV"
+          echo "DEV_KEYSTORE_PASSWORD=$DEV_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
 
       - name: Ktlint
         run: set -o pipefail; ./gradlew ktlintCheck 2>&1 | tee -a build-output.log
@@ -52,6 +71,29 @@ jobs:
           name: gym-tracker-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+
+      # One rolling pre-release, tagged "dev", always holds the latest main build at fixed URLs:
+      # releases/download/dev/gym-tracker-dev.apk and releases/download/dev/version.json.
+      - name: Publish dev release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -z "${DEV_KEYSTORE_PATH:-}" ]; then
+            echo "::warning::Skipping the dev release: it needs the DEV_KEYSTORE_BASE64 and DEV_KEYSTORE_PASSWORD secrets."
+            exit 0
+          fi
+          cp app/build/outputs/apk/debug/*.apk gym-tracker-dev.apk
+          printf '{"versionCode": %d, "commit": "%s"}\n' "$VERSION_CODE" "$GITHUB_SHA" > version.json
+          git tag -f dev "$GITHUB_SHA"
+          git push -f origin refs/tags/dev
+          if ! gh release view dev > /dev/null 2>&1; then
+            gh release create dev --prerelease --verify-tag --title "Dev build" --notes "Latest build of main."
+          fi
+          gh release edit dev --notes "Build $VERSION_CODE from ${GITHUB_SHA::7}. Latest build of main."
+          # The APK goes up first, so version.json never points at a build that is not there yet.
+          gh release upload dev gym-tracker-dev.apk --clobber
+          gh release upload dev version.json --clobber
 
       - name: Upload Room schemas
         if: always()
