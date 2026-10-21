@@ -133,6 +133,41 @@ class WorkoutRepositoryTest {
     }
 
     @Test
+    fun `workout notes are saved on the active workout`() = runTest {
+        repository.startEmptyWorkout()
+        clock = 4_000L
+
+        repository.updateWorkoutNotes("id-0", "Felt strong, short on sleep")
+
+        val active = repository.observeActiveWorkout().first()
+        assertEquals("Felt strong, short on sleep", active?.notes)
+        assertEquals(4_000L, active?.updatedAt)
+        assertNull(active?.endedAt)
+    }
+
+    @Test
+    fun `exercise notes show on that exercise only`() = runTest {
+        val workout = repository.startEmptyWorkout()
+        repository.addExercises(workout.id, listOf("bench", "ohp"))
+        val ids = repository.observeExerciseEntries(workout.id).first().associate { it.exerciseId to it.id }
+
+        repository.updateExerciseNotes(ids.getValue("bench"), "Seat 4, wide grip")
+
+        val notes = repository.observeExerciseEntries(workout.id).first().associate { it.exerciseId to it.notes }
+        assertEquals(mapOf("bench" to "Seat 4, wide grip", "ohp" to ""), notes)
+    }
+
+    @Test
+    fun `clearing a note saves it empty`() = runTest {
+        val benchId = startWithExercise("bench")
+        repository.updateExerciseNotes(benchId, "Seat 4")
+
+        repository.updateExerciseNotes(benchId, "")
+
+        assertEquals("", repository.observeExerciseEntries("id-0").first().single().notes)
+    }
+
+    @Test
     fun `the same exercise can be added twice`() = runTest {
         val workout = repository.startEmptyWorkout()
 

@@ -1,5 +1,7 @@
 package io.github.prithvimk.gymtracker.ui
 
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -56,7 +58,9 @@ fun GymTrackerRoot() {
         NavHost(
             navController = navController,
             startDestination = TopLevelDestination.START.route,
-            modifier = Modifier.padding(innerPadding),
+            // Edge-to-edge means the window no longer shrinks for the keyboard, so the content makes room
+            // itself. The bottom bar's share of innerPadding is consumed first so it isn't counted twice.
+            modifier = Modifier.padding(innerPadding).consumeWindowInsets(innerPadding).imePadding(),
             enterTransition = { tabEnterTransition },
             exitTransition = { tabExitTransition },
             popEnterTransition = { tabEnterTransition },

@@ -18,6 +18,11 @@
     <string name="workout_move_up">Move up</string>
     <string name="workout_move_down">Move down</string>
     <string name="workout_remove_exercise">Remove from workout</string>
+    <string name="workout_add_note">Add note</string>
+    <string name="workout_exercise_note">Note</string>
+    <string name="workout_exercise_note_placeholder">Seat height, grip, how it felt</string>
+    <string name="workout_notes">Workout notes</string>
+    <string name="workout_notes_placeholder">How the session went</string>
     <string name="workout_finish">Finish</string>
     <string name="workout_discard">Discard</string>
     <string name="workout_summary_title">Workout finished</string>

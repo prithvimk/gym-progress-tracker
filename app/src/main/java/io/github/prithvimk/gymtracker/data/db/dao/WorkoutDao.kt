@@ -21,6 +21,7 @@ data class WorkoutExerciseEntry(
     val name: String,
     val muscleGroup: MuscleGroup,
     val equipment: Equipment,
+    val notes: String,
 )
 
 @Dao
@@ -51,6 +52,9 @@ interface WorkoutDao {
     @Query("UPDATE workouts SET endedAt = :endedAt, updatedAt = :endedAt WHERE id = :id AND endedAt IS NULL")
     suspend fun finish(id: String, endedAt: Long)
 
+    @Query("UPDATE workouts SET notes = :notes, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun updateNotes(id: String, notes: String, updatedAt: Long)
+
     @Query("SELECT * FROM workouts WHERE id = :id")
     suspend fun getById(id: String): Workout?
 
@@ -65,7 +69,7 @@ interface WorkoutDao {
 
     @Query(
         """
-        SELECT we.id, we.exerciseId, we.position, e.name, e.muscleGroup, e.equipment
+        SELECT we.id, we.exerciseId, we.position, e.name, e.muscleGroup, e.equipment, we.notes
         FROM workout_exercises we JOIN exercises e ON e.id = we.exerciseId
         WHERE we.workoutId = :workoutId
         ORDER BY we.position
@@ -110,6 +114,9 @@ interface WorkoutDao {
 
     @Upsert
     suspend fun upsertExercises(workoutExercises: List<WorkoutExercise>)
+
+    @Query("UPDATE workout_exercises SET notes = :notes, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun updateExerciseNotes(id: String, notes: String, updatedAt: Long)
 
     @Query("DELETE FROM workout_exercises WHERE id = :id")
     suspend fun deleteExerciseById(id: String)

@@ -41,6 +41,10 @@ class WorkoutRepository(
         return summarizeWorkout(workout, workoutDao.observeSetsForWorkout(id).first(), now = now())
     }
 
+    suspend fun updateWorkoutNotes(id: String, notes: String) {
+        workoutDao.updateNotes(id, notes, updatedAt = now())
+    }
+
     fun observeExerciseEntries(workoutId: String): Flow<List<WorkoutExerciseEntry>> =
         workoutDao.observeExerciseEntries(workoutId)
 
@@ -54,6 +58,10 @@ class WorkoutRepository(
     /** Moves an exercise [offset] places within its workout; negative moves it up. */
     suspend fun moveExercise(workoutId: String, workoutExerciseId: String, offset: Int) {
         workoutDao.moveExercise(workoutId, workoutExerciseId, offset, updatedAt = now())
+    }
+
+    suspend fun updateExerciseNotes(workoutExerciseId: String, notes: String) {
+        workoutDao.updateExerciseNotes(workoutExerciseId, notes, updatedAt = now())
     }
 
     fun observeSetsForWorkout(workoutId: String): Flow<List<WorkoutSet>> = workoutDao.observeSetsForWorkout(workoutId)

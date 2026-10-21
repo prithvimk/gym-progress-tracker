@@ -25,6 +25,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -64,25 +66,30 @@ data class ExercisePickerState(
 class WorkoutViewModel(private val workoutRepository: WorkoutRepository, exerciseRepository: ExerciseRepository,) :
     ViewModel() {
     // The active workout comes straight from the database, so it is back after the app is killed.
+    private val activeWorkout = workoutRepository.observeActiveWorkout()
+
+    // Keyed on the id, so edits to the workout row itself (its notes) don't restart the queries below.
     val state: StateFlow<WorkoutUiState> =
-        workoutRepository
-            .observeActiveWorkout()
-            .flatMapLatest { workout ->
-                if (workout == null) {
+        activeWorkout
+            .map { it?.id }
+            .distinctUntilChanged()
+            .flatMapLatest { workoutId ->
+                if (workoutId == null) {
                     flowOf(WorkoutUiState.Idle)
                 } else {
-                    val exercises = workoutRepository.observeExerciseEntries(workout.id)
+                    val exercises = workoutRepository.observeExerciseEntries(workoutId)
                     // Past workouts don't change mid-session, so this is looked up only when the exercises change.
                     val previousSets =
                         exercises
                             .map { entries -> entries.map { it.exerciseId }.toSet() }
                             .distinctUntilChanged()
-                            .mapLatest { ids -> ids.associateWith { workoutRepository.previousSets(it, workout.id) } }
+                            .mapLatest { ids -> ids.associateWith { workoutRepository.previousSets(it, workoutId) } }
                     combine(
+                        activeWorkout.filter { it?.id == workoutId }.filterNotNull(),
                         exercises,
-                        workoutRepository.observeSetsForWorkout(workout.id),
+                        workoutRepository.observeSetsForWorkout(workoutId),
                         previousSets,
-                    ) { entries, sets, previous ->
+                    ) { workout, entries, sets, previous ->
                         WorkoutUiState.Active(workout, entries, sets.groupBy { it.workoutExerciseId }, previous)
                     }
                 }
@@ -185,6 +192,15 @@ class WorkoutViewModel(private val workoutRepository: WorkoutRepository, exercis
 
     fun onRemoveDismiss() {
         _pendingRemoval.value = null
+    }
+
+    fun onWorkoutNotesChange(notes: String) {
+        val active = state.value as? WorkoutUiState.Active ?: return
+        viewModelScope.launch { workoutRepository.updateWorkoutNotes(active.workout.id, notes) }
+    }
+
+    fun onExerciseNotesChange(workoutExerciseId: String, notes: String) {
+        viewModelScope.launch { workoutRepository.updateExerciseNotes(workoutExerciseId, notes) }
     }
 
     fun onAddSet(workoutExerciseId: String) {
