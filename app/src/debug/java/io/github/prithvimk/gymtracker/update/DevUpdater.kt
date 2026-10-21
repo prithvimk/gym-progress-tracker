@@ -28,16 +28,37 @@ class DevUpdater(private val context: Context) {
             context.packageManager.getPackageInfo(context.packageName, 0),
         )
 
-    suspend fun fetchLatest(): DevBuild = withContext(Dispatchers.IO) {
-        val text = open(DevRelease.VERSION_URL).useBody { it.readBytes().decodeToString() }
+    /** The latest build of main. */
+    suspend fun fetchLatest(): Candidate = Candidate(DevRelease.DEV_TAG, fetchBuild(DevRelease.DEV_TAG))
+
+    /**
+     * The test builds of open pull requests, newest PR first. A PR whose build can't be read is left
+     * out rather than failing the whole list.
+     */
+    suspend fun fetchPrBuilds(): List<Candidate> = withContext(Dispatchers.IO) {
+        val connection = open(DevRelease.RELEASES_API_URL, accept = GITHUB_JSON)
+        val text = connection.useBody { it.readBytes().decodeToString() }
+        val releases = parsePrReleases(text) ?: throw UpdateException(UpdateFailure.NETWORK)
+        releases.mapNotNull { pr ->
+            try {
+                Candidate(pr.tag, fetchBuild(pr.tag), pr)
+            } catch (e: UpdateException) {
+                null
+            }
+        }
+    }
+
+    private suspend fun fetchBuild(tag: String): DevBuild = withContext(Dispatchers.IO) {
+        val text = open(DevRelease.versionUrl(tag)).useBody { it.readBytes().decodeToString() }
         parseDevBuild(text) ?: throw UpdateException(UpdateFailure.NO_RELEASE)
     }
 
-    /** Downloads the APK, reporting progress from 0 to 1 when the size is known, and checks it is [build]. */
-    suspend fun download(build: DevBuild, onProgress: (Float?) -> Unit): File = withContext(Dispatchers.IO) {
+    /** Downloads the APK, reporting progress from 0 to 1 when the size is known, and checks it is the build expected. */
+    suspend fun download(candidate: Candidate, onProgress: (Float?) -> Unit): File = withContext(Dispatchers.IO) {
+        val build = candidate.build
         val target = apkFile
         target.parentFile?.mkdirs()
-        val connection = open(DevRelease.APK_URL)
+        val connection = open(DevRelease.apkUrl(candidate.tag))
         val total = connection.contentLengthLong
         connection.useBody { input ->
             target.outputStream().use { output ->
@@ -82,12 +103,13 @@ class DevUpdater(private val context: Context) {
         }
     }
 
-    private fun open(url: String): HttpURLConnection {
+    private fun open(url: String, accept: String? = null): HttpURLConnection {
         val connection = (URL(url).openConnection() as HttpURLConnection).apply {
             connectTimeout = TIMEOUT_MS
             readTimeout = TIMEOUT_MS
             useCaches = false
             setRequestProperty("Cache-Control", "no-cache")
+            accept?.let { setRequestProperty("Accept", it) }
         }
         val code =
             try {
@@ -116,6 +138,7 @@ class DevUpdater(private val context: Context) {
         const val UPDATES_DIR = "updates"
         const val APK_NAME = "gym-tracker-dev.apk"
         const val PROVIDER_SUFFIX = ".updates"
+        const val GITHUB_JSON = "application/vnd.github+json"
         const val APK_MIME_TYPE = "application/vnd.android.package-archive"
         const val TIMEOUT_MS = 15_000
         const val BUFFER_SIZE = 64 * 1024
