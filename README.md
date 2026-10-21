@@ -35,6 +35,8 @@ A build installed from Android Studio is signed with your machine's debug key, s
 
 After that, debug builds update themselves: Settings → App updates → Check for updates downloads the newer build from the `dev` release and opens Android's installer. The first time, Android asks you to allow installs from Gym Tracker. Release builds don't include the updater, and have no internet permission.
 
+Each open pull request also gets a test build in its own pre-release, tagged `pr-<number>`, which is deleted when the PR closes. Settings → App updates → Test a PR build lists them, so a change can be tried on the phone before it is merged. A PR build installs only if it is newer than the installed build, and the next build of `main` updates over it.
+
 ## v1 scope
 
 - Log workouts: exercises, sets, weight, reps, optional RPE
