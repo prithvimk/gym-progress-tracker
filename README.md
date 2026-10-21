@@ -33,6 +33,8 @@ Then add `DEV_KEYSTORE_BASE64` (the base64 output) and `DEV_KEYSTORE_PASSWORD` (
 
 A build installed from Android Studio is signed with your machine's debug key, so uninstall it once before installing the first dev build. That clears the app's data.
 
+After that, debug builds update themselves: Settings → App updates → Check for updates downloads the newer build from the `dev` release and opens Android's installer. The first time, Android asks you to allow installs from Gym Tracker. Release builds don't include the updater, and have no internet permission.
+
 ## v1 scope
 
 - Log workouts: exercises, sets, weight, reps, optional RPE

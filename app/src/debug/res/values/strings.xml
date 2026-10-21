@@ -1,0 +1,17 @@
+<resources>
+    <!-- Dev build updater (debug builds only) -->
+    <string name="update_title">App updates</string>
+    <string name="update_installed">Installed build %1$d</string>
+    <string name="update_check">Check for updates</string>
+    <string name="update_download">Download and install</string>
+    <string name="update_install">Install</string>
+    <string name="update_status_idle">Get the latest build of main from GitHub.</string>
+    <string name="update_status_checking">Checking…</string>
+    <string name="update_status_up_to_date">You have the latest build.</string>
+    <string name="update_status_available">Build %1$d (%2$s) is available.</string>
+    <string name="update_status_downloading">Downloading build %1$d…</string>
+    <string name="update_status_ready">Build %1$d is ready. Android will ask you to confirm the install.</string>
+    <string name="update_error_network">Couldn\'t reach GitHub. Check your connection and try again.</string>
+    <string name="update_error_no_release">No dev build has been published yet.</string>
+    <string name="update_error_bad_apk">The download didn\'t match the advertised build, so it wasn\'t installed.</string>
+</resources>
