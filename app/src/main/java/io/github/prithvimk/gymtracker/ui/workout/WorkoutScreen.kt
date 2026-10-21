@@ -250,6 +250,7 @@ private fun ActiveContent(
                 ExerciseCard(
                     entry = entry,
                     sets = state.sets[entry.id].orEmpty(),
+                    previousSets = state.previousSets[entry.exerciseId].orEmpty(),
                     setActions = setActions,
                     onAddSet = { onAddSet(entry.id) },
                     canMoveUp = index > 0,
@@ -284,6 +285,7 @@ private fun ActiveContent(
 private fun ExerciseCard(
     entry: WorkoutExerciseEntry,
     sets: List<WorkoutSet>,
+    previousSets: List<WorkoutSet>,
     setActions: SetActions,
     onAddSet: () -> Unit,
     canMoveUp: Boolean,
@@ -345,6 +347,7 @@ private fun ExerciseCard(
             }
             SetTable(
                 sets = sets,
+                previousSets = previousSets,
                 actions = setActions,
                 onAddSet = onAddSet,
                 modifier = Modifier.padding(start = 4.dp, end = 4.dp, bottom = 4.dp),

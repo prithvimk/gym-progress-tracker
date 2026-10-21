@@ -10,6 +10,7 @@ import io.github.prithvimk.gymtracker.data.db.entity.WorkoutSet
 import io.github.prithvimk.gymtracker.domain.model.Equipment
 import io.github.prithvimk.gymtracker.domain.model.MuscleGroup
 import io.github.prithvimk.gymtracker.domain.model.SetType
+import io.github.prithvimk.gymtracker.domain.prefillForNewSet
 import kotlinx.coroutines.flow.Flow
 
 /** An exercise in a workout, joined with the library entry it points at so the logger can show its name. */
@@ -126,24 +127,53 @@ interface WorkoutDao {
     )
     fun observeSetsForWorkout(workoutId: String): Flow<List<WorkoutSet>>
 
+    @Query("SELECT * FROM workout_exercises WHERE id = :id")
+    suspend fun getExercise(id: String): WorkoutExercise?
+
+    @Query("SELECT * FROM workout_sets WHERE workoutExerciseId = :workoutExerciseId ORDER BY position")
+    suspend fun getSets(workoutExerciseId: String): List<WorkoutSet>
+
     /**
-     * Appends a working set after the exercise's last one, copying that set's weight and reps (zero for
-     * the first set). One statement, so quick taps never share a position.
+     * The sets an exercise had in its most recent finished workout other than [excludingWorkoutId].
+     * If it appeared twice in that workout, the first appearance counts.
      */
     @Query(
         """
-        INSERT INTO workout_sets
-            (id, workoutExerciseId, position, weightKg, reps, rpe, type, completedAt, createdAt, updatedAt)
-        SELECT :id, :workoutExerciseId, COALESCE(MAX(position) + 1, 0),
-            COALESCE((SELECT weightKg FROM workout_sets WHERE workoutExerciseId = :workoutExerciseId
-                ORDER BY position DESC LIMIT 1), 0),
-            COALESCE((SELECT reps FROM workout_sets WHERE workoutExerciseId = :workoutExerciseId
-                ORDER BY position DESC LIMIT 1), 0),
-            NULL, 'WORKING', NULL, :createdAt, :createdAt
-        FROM workout_sets WHERE workoutExerciseId = :workoutExerciseId
+        SELECT * FROM workout_sets WHERE workoutExerciseId = (
+            SELECT we.id FROM workout_exercises we JOIN workouts w ON w.id = we.workoutId
+            WHERE we.exerciseId = :exerciseId AND w.endedAt IS NOT NULL AND w.id != :excludingWorkoutId
+            ORDER BY w.startedAt DESC, we.position
+            LIMIT 1
+        )
+        ORDER BY position
         """
     )
-    suspend fun appendSet(id: String, workoutExerciseId: String, createdAt: Long)
+    suspend fun getPreviousSets(exerciseId: String, excludingWorkoutId: String): List<WorkoutSet>
+
+    /**
+     * Appends a working set after the exercise's last one, prefilled by [prefillForNewSet]. A transaction,
+     * so quick taps never share a position.
+     */
+    @Transaction
+    suspend fun appendSet(id: String, workoutExerciseId: String, createdAt: Long) {
+        val exercise = getExercise(workoutExerciseId) ?: return
+        val current = getSets(workoutExerciseId)
+        val prefill = prefillForNewSet(current, getPreviousSets(exercise.exerciseId, exercise.workoutId))
+        upsertSet(
+            WorkoutSet(
+                id = id,
+                workoutExerciseId = workoutExerciseId,
+                position = (current.maxOfOrNull { it.position } ?: -1) + 1,
+                weightKg = prefill.weightKg,
+                reps = prefill.reps,
+                rpe = null,
+                type = SetType.WORKING,
+                completedAt = null,
+                createdAt = createdAt,
+                updatedAt = createdAt,
+            ),
+        )
+    }
 
     // Each field has its own update so edits to different fields of a set never overwrite each other.
     @Query("UPDATE workout_sets SET weightKg = :weightKg, updatedAt = :updatedAt WHERE id = :id")

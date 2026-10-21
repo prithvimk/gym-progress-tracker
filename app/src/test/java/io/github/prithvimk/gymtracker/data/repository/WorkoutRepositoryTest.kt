@@ -303,6 +303,56 @@ class WorkoutRepositoryTest {
         assertEquals(emptyList<String>(), repository.observeSetsForWorkout(second.id).first().map { it.id })
     }
 
+    @Test
+    fun `previous sets come from the most recent finished workout with the exercise`() = runTest {
+        logFinishedSession("bench", weightKg = 60.0, reps = 10)
+        clock = 2_000L
+        logFinishedSession("ohp", weightKg = 40.0, reps = 8)
+        clock = 3_000L
+        logFinishedSession("bench", weightKg = 70.0, reps = 8)
+        clock = 4_000L
+        val current = repository.startEmptyWorkout()
+
+        val previous = repository.previousSets("bench", current.id)
+        assertEquals(listOf(70.0, 70.0), previous.map { it.weightKg })
+        assertEquals(emptyList<Double>(), repository.previousSets("fly", current.id).map { it.weightKg })
+    }
+
+    @Test
+    fun `the active workout is never its own previous session`() = runTest {
+        val benchId = startWithExercise("bench")
+        repository.addSet(benchId)
+        val active = repository.observeActiveWorkout().first()!!
+
+        assertEquals(emptyList<String>(), repository.previousSets("bench", active.id).map { it.id })
+    }
+
+    @Test
+    fun `new sets are prefilled from last session`() = runTest {
+        logFinishedSession("bench", weightKg = 80.0, reps = 8)
+        clock = 5_000L
+        val benchId = startWithExercise("bench")
+
+        repository.addSet(benchId)
+        repository.addSet(benchId)
+
+        val sets = setsOf(benchId)
+        assertEquals(listOf(80.0, 80.0), sets.map { it.weightKg })
+        assertEquals(listOf(8, 8), sets.map { it.reps })
+        assertEquals(listOf(0, 1), sets.map { it.position })
+    }
+
+    /** Logs and finishes a workout with one exercise and two sets of [weightKg] × [reps]. */
+    private suspend fun logFinishedSession(exerciseId: String, weightKg: Double, reps: Int) {
+        val workoutExerciseId = startWithExercise(exerciseId)
+        repeat(2) { repository.addSet(workoutExerciseId) }
+        setsOf(workoutExerciseId).forEach {
+            repository.updateSetWeight(it.id, weightKg)
+            repository.updateSetReps(it.id, reps)
+        }
+        repository.finishWorkout(repository.observeActiveWorkout().first()!!.id)
+    }
+
     /** Starts a workout with one exercise and returns the workout exercise id. */
     private suspend fun startWithExercise(exerciseId: String): String {
         val workout = repository.startEmptyWorkout()

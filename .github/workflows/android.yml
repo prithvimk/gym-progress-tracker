@@ -7,8 +7,10 @@ on:
     # "closed" only runs the job that deletes the PR's test build.
     types: [opened, synchronize, reopened, closed]
 
+# Pushes to main and each PR queue separately. A merged PR's "closed" run reports main as its ref, so
+# keying on the ref alone let it cancel the push build of that same merge.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:

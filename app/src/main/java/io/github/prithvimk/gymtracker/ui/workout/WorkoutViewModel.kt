@@ -22,8 +22,11 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -33,11 +36,15 @@ sealed interface WorkoutUiState {
 
     data object Idle : WorkoutUiState
 
-    /** [sets] maps each workout exercise id to its sets, in order. */
+    /**
+     * [sets] maps each workout exercise id to its sets, in order. [previousSets] maps each exercise id
+     * (from the library) to its sets from the last finished workout that had it.
+     */
     data class Active(
         val workout: Workout,
         val exercises: List<WorkoutExerciseEntry> = emptyList(),
         val sets: Map<String, List<WorkoutSet>> = emptyMap(),
+        val previousSets: Map<String, List<WorkoutSet>> = emptyMap(),
     ) : WorkoutUiState
 }
 
@@ -62,11 +69,19 @@ class WorkoutViewModel(private val workoutRepository: WorkoutRepository, exercis
                 if (workout == null) {
                     flowOf(WorkoutUiState.Idle)
                 } else {
+                    val exercises = workoutRepository.observeExerciseEntries(workout.id)
+                    // Past workouts don't change mid-session, so this is looked up only when the exercises change.
+                    val previousSets =
+                        exercises
+                            .map { entries -> entries.map { it.exerciseId }.toSet() }
+                            .distinctUntilChanged()
+                            .mapLatest { ids -> ids.associateWith { workoutRepository.previousSets(it, workout.id) } }
                     combine(
-                        workoutRepository.observeExerciseEntries(workout.id),
+                        exercises,
                         workoutRepository.observeSetsForWorkout(workout.id),
-                    ) { exercises, sets ->
-                        WorkoutUiState.Active(workout, exercises, sets.groupBy { it.workoutExerciseId })
+                        previousSets,
+                    ) { entries, sets, previous ->
+                        WorkoutUiState.Active(workout, entries, sets.groupBy { it.workoutExerciseId }, previous)
                     }
                 }
             }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), WorkoutUiState.Loading)

@@ -49,7 +49,11 @@ class WorkoutRepository(
 
     fun observeSetsForWorkout(workoutId: String): Flow<List<WorkoutSet>> = workoutDao.observeSetsForWorkout(workoutId)
 
-    /** Adds a working set to the end of the exercise, prefilled from the set before it. */
+    /** The exercise's sets from its most recent finished workout other than [currentWorkoutId]. */
+    suspend fun previousSets(exerciseId: String, currentWorkoutId: String): List<WorkoutSet> =
+        workoutDao.getPreviousSets(exerciseId, excludingWorkoutId = currentWorkoutId)
+
+    /** Adds a working set to the end of the exercise, prefilled from last session or the set before it. */
     suspend fun addSet(workoutExerciseId: String) {
         workoutDao.appendSet(id = newId(), workoutExerciseId = workoutExerciseId, createdAt = now())
     }
