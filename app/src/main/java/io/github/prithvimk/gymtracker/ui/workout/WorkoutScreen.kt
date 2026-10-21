@@ -1,5 +1,6 @@
 package io.github.prithvimk.gymtracker.ui.workout
 
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -46,6 +47,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -278,7 +281,18 @@ private fun ActiveContent(
         }
     }
 
-    Column(modifier = modifier.fillMaxSize()) {
+    // Compose keeps a field focused until told otherwise, so the cursor would linger after the
+    // keyboard is put away or the user taps elsewhere. Both of those end editing here.
+    val focusManager = LocalFocusManager.current
+    val imeVisible = WindowInsets.isImeVisible
+    LaunchedEffect(imeVisible) {
+        if (!imeVisible) focusManager.clearFocus()
+    }
+
+    // Fields and buttons handle their own taps; a tap on anything else lands here.
+    Column(
+        modifier = modifier.fillMaxSize().pointerInput(Unit) { detectTapGestures { focusManager.clearFocus() } },
+    ) {
         Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp)) {
             Text(
                 text = stringResource(R.string.workout_active_title),
@@ -339,7 +353,7 @@ private fun ActiveContent(
             }
         }
         // Hidden while typing, so the keyboard leaves as much of the list visible as it can.
-        if (!WindowInsets.isImeVisible) {
+        if (!imeVisible) {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -441,7 +455,8 @@ private fun ExerciseCard(
                     placeholder = stringResource(R.string.workout_exercise_note_placeholder),
                     onChange = onNotesChange,
                     requestFocus = focusNote,
-                    modifier = Modifier.padding(horizontal = 16.dp),
+                    // Clear of the set table's header, so the note reads as its own block.
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
                 )
             }
             SetTable(
