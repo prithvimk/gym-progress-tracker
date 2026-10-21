@@ -3,12 +3,15 @@ package io.github.prithvimk.gymtracker.ui.workout
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -251,6 +254,7 @@ private fun IdleContent(onStartClick: () -> Unit, modifier: Modifier = Modifier)
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ActiveContent(
     state: WorkoutUiState.Active,
@@ -334,15 +338,18 @@ private fun ActiveContent(
                 }
             }
         }
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-        ) {
-            OutlinedButton(onClick = onDiscardClick, modifier = Modifier.weight(1f)) {
-                Text(stringResource(R.string.workout_discard))
-            }
-            Button(onClick = onFinishClick, modifier = Modifier.weight(1f)) {
-                Text(stringResource(R.string.workout_finish))
+        // Hidden while typing, so the keyboard leaves as much of the list visible as it can.
+        if (!WindowInsets.isImeVisible) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+            ) {
+                OutlinedButton(onClick = onDiscardClick, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.workout_discard))
+                }
+                Button(onClick = onFinishClick, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.workout_finish))
+                }
             }
         }
     }
