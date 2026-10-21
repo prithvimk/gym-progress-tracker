@@ -20,6 +20,14 @@
     <string name="workout_remove_exercise">Remove from workout</string>
     <string name="workout_finish">Finish</string>
     <string name="workout_discard">Discard</string>
+    <string name="workout_summary_title">Workout finished</string>
+    <string name="workout_summary_duration">Duration</string>
+    <string name="workout_summary_exercises">Exercises</string>
+    <string name="workout_summary_sets">Sets</string>
+    <string name="workout_summary_volume">Volume</string>
+    <string name="workout_summary_volume_value">%1$s kg</string>
+    <string name="workout_summary_no_sets">No sets were marked done, so nothing counts towards volume.</string>
+    <string name="workout_summary_done">Done</string>
     <string name="workout_discard_title">Discard this workout?</string>
     <string name="workout_discard_body">Everything logged in this workout will be deleted.</string>
     <string name="workout_discard_confirm">Discard</string>

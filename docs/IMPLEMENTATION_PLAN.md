@@ -69,8 +69,8 @@ Goal: log a real gym session faster than a notes app.
 - [x] "Last time" column: the matching set from the previous session of that exercise, and new sets prefilled from it
 - [ ] Quick steppers (+2.5 kg, +1 rep) and a numeric keypad that stays open between fields
 - [ ] Exercise notes and workout notes
-- [ ] Finish workout: summary of duration, sets and total volume; discard with confirmation
-- [ ] Unit tests for "previous set" lookup and volume maths
+- [x] Finish workout: summary of duration, sets and total volume; discard with confirmation
+- [x] Unit tests for "previous set" lookup and volume maths
 
 Done when: you log two real sessions at the gym and the second one shows the first one's numbers.
 

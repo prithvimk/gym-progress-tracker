@@ -7,9 +7,12 @@ import io.github.prithvimk.gymtracker.data.db.entity.PersonalRecord
 import io.github.prithvimk.gymtracker.data.db.entity.Workout
 import io.github.prithvimk.gymtracker.data.db.entity.WorkoutExercise
 import io.github.prithvimk.gymtracker.data.db.entity.WorkoutSet
+import io.github.prithvimk.gymtracker.domain.WorkoutSummary
 import io.github.prithvimk.gymtracker.domain.model.SetType
+import io.github.prithvimk.gymtracker.domain.summarizeWorkout
 import java.util.UUID
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 
 /** Logged workouts, their exercises and sets, and PRs. */
 class WorkoutRepository(
@@ -30,6 +33,12 @@ class WorkoutRepository(
     /** Ends the workout. Does nothing if it has already finished. */
     suspend fun finishWorkout(id: String) {
         workoutDao.finish(id, endedAt = now())
+    }
+
+    /** Duration, completed sets and volume of the workout, or null if it does not exist. */
+    suspend fun summarize(id: String): WorkoutSummary? {
+        val workout = workoutDao.getById(id) ?: return null
+        return summarizeWorkout(workout, workoutDao.observeSetsForWorkout(id).first(), now = now())
     }
 
     fun observeExerciseEntries(workoutId: String): Flow<List<WorkoutExerciseEntry>> =

@@ -87,6 +87,7 @@ fun workoutSet(
     weightKg: Double = 60.0,
     reps: Int = 8,
     type: SetType = SetType.WORKING,
+    completedAt: Long? = null,
 ): WorkoutSet = WorkoutSet(
     id = id,
     workoutExerciseId = workoutExerciseId,
@@ -95,7 +96,7 @@ fun workoutSet(
     reps = reps,
     rpe = null,
     type = type,
-    completedAt = null,
+    completedAt = completedAt,
     createdAt = 0L,
     updatedAt = 0L,
 )

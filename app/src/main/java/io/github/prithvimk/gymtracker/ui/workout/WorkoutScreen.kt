@@ -48,6 +48,7 @@ import io.github.prithvimk.gymtracker.R
 import io.github.prithvimk.gymtracker.data.db.dao.WorkoutExerciseEntry
 import io.github.prithvimk.gymtracker.data.db.entity.Workout
 import io.github.prithvimk.gymtracker.data.db.entity.WorkoutSet
+import io.github.prithvimk.gymtracker.domain.WorkoutSummary
 import io.github.prithvimk.gymtracker.domain.model.Equipment
 import io.github.prithvimk.gymtracker.domain.model.MuscleGroup
 import io.github.prithvimk.gymtracker.domain.model.SetType
@@ -64,6 +65,7 @@ fun WorkoutRoute(
     val confirmingDiscard by viewModel.confirmingDiscard.collectAsStateWithLifecycle()
     val picker by viewModel.picker.collectAsStateWithLifecycle()
     val pendingRemoval by viewModel.pendingRemoval.collectAsStateWithLifecycle()
+    val summary by viewModel.summary.collectAsStateWithLifecycle()
     val setActions =
         remember(viewModel) {
             SetActions(
@@ -117,6 +119,8 @@ fun WorkoutRoute(
         )
     }
 
+    summary?.let { WorkoutSummaryDialog(summary = it, onDismiss = viewModel::onSummaryDismiss) }
+
     if (confirmingDiscard) {
         AlertDialog(
             onDismissRequest = viewModel::onDiscardDismiss,
@@ -133,6 +137,44 @@ fun WorkoutRoute(
                 }
             },
         )
+    }
+}
+
+@Composable
+private fun WorkoutSummaryDialog(summary: WorkoutSummary, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.workout_summary_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SummaryRow(stringResource(R.string.workout_summary_duration), formatElapsed(summary.durationMillis))
+                SummaryRow(stringResource(R.string.workout_summary_exercises), summary.exerciseCount.toString())
+                SummaryRow(stringResource(R.string.workout_summary_sets), summary.setCount.toString())
+                SummaryRow(
+                    stringResource(R.string.workout_summary_volume),
+                    stringResource(R.string.workout_summary_volume_value, formatVolume(summary.volumeKg)),
+                )
+                if (summary.setCount == 0) {
+                    Text(
+                        text = stringResource(R.string.workout_summary_no_sets),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.workout_summary_done)) }
+        },
+    )
+}
+
+@Composable
+private fun SummaryRow(label: String, value: String) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        Text(value, style = MaterialTheme.typography.titleMedium)
     }
 }
 
