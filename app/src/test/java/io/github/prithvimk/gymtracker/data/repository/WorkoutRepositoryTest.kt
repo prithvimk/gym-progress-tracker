@@ -8,6 +8,7 @@ import io.github.prithvimk.gymtracker.data.db.GymDatabase
 import io.github.prithvimk.gymtracker.data.db.withDefaults
 import io.github.prithvimk.gymtracker.data.exercise
 import io.github.prithvimk.gymtracker.data.inMemoryDatabase
+import io.github.prithvimk.gymtracker.domain.WorkoutSummary
 import io.github.prithvimk.gymtracker.domain.model.SetType
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -260,6 +261,36 @@ class WorkoutRepositoryTest {
 
         repository.setSetCompleted(setId, completed = false)
         assertNull(setsOf(benchId).single().completedAt)
+    }
+
+    @Test
+    fun `the summary of a finished workout counts its completed sets`() = runTest {
+        val benchId = startWithExercise("bench")
+        repeat(2) { repository.addSet(benchId) }
+        val (done, skipped) = setsOf(benchId)
+        repository.updateSetWeight(done.id, 80.0)
+        repository.updateSetReps(done.id, 8)
+        repository.updateSetWeight(skipped.id, 80.0)
+        repository.updateSetReps(skipped.id, 8)
+        repository.setSetCompleted(done.id, completed = true)
+        clock = 1_801_000L
+        repository.finishWorkout("id-0")
+        clock = 9_000_000L
+
+        val summary = repository.summarize("id-0")
+
+        assertEquals(
+            WorkoutSummary(durationMillis = 1_800_000L, exerciseCount = 1, setCount = 1, volumeKg = 640.0),
+            summary
+        )
+    }
+
+    @Test
+    fun `there is no summary of a discarded workout`() = runTest {
+        repository.startEmptyWorkout()
+        repository.deleteWorkout("id-0")
+
+        assertNull(repository.summarize("id-0"))
     }
 
     @Test

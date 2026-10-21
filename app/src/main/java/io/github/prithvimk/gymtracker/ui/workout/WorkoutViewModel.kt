@@ -12,9 +12,11 @@ import io.github.prithvimk.gymtracker.data.db.entity.Workout
 import io.github.prithvimk.gymtracker.data.db.entity.WorkoutSet
 import io.github.prithvimk.gymtracker.data.repository.ExerciseRepository
 import io.github.prithvimk.gymtracker.data.repository.WorkoutRepository
+import io.github.prithvimk.gymtracker.domain.WorkoutSummary
 import io.github.prithvimk.gymtracker.domain.model.SetType
 import io.github.prithvimk.gymtracker.ui.exercises.ExerciseFilter
 import io.github.prithvimk.gymtracker.ui.exercises.filteredBy
+import java.text.NumberFormat
 import java.util.Locale
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -89,6 +91,10 @@ class WorkoutViewModel(private val workoutRepository: WorkoutRepository, exercis
     private val _confirmingDiscard = MutableStateFlow(false)
     val confirmingDiscard: StateFlow<Boolean> = _confirmingDiscard.asStateFlow()
 
+    // Held here because the finished workout is no longer active, so state has already moved on to Idle.
+    private val _summary = MutableStateFlow<WorkoutSummary?>(null)
+    val summary: StateFlow<WorkoutSummary?> = _summary.asStateFlow()
+
     private val _pendingRemoval = MutableStateFlow<PendingRemoval?>(null)
     val pendingRemoval: StateFlow<PendingRemoval?> = _pendingRemoval.asStateFlow()
 
@@ -106,7 +112,14 @@ class WorkoutViewModel(private val workoutRepository: WorkoutRepository, exercis
 
     fun onFinishClick() {
         val active = state.value as? WorkoutUiState.Active ?: return
-        viewModelScope.launch { workoutRepository.finishWorkout(active.workout.id) }
+        viewModelScope.launch {
+            workoutRepository.finishWorkout(active.workout.id)
+            _summary.value = workoutRepository.summarize(active.workout.id)
+        }
+    }
+
+    fun onSummaryDismiss() {
+        _summary.value = null
     }
 
     fun onDiscardClick() {
@@ -230,3 +243,7 @@ fun formatElapsed(millis: Long): String {
         String.format(Locale.ROOT, "%d:%02d", minutes, seconds)
     }
 }
+
+/** Formats volume in kg with grouping and at most one decimal, e.g. "12,345.5". */
+fun formatVolume(volumeKg: Double, locale: Locale = Locale.getDefault()): String =
+    NumberFormat.getNumberInstance(locale).apply { maximumFractionDigits = 1 }.format(volumeKg)
