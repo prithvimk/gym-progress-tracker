@@ -16,6 +16,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import io.github.prithvimk.gymtracker.R
 import io.github.prithvimk.gymtracker.ui.theme.GymTrackerTheme
+import io.github.prithvimk.gymtracker.update.DevUpdateSection
 
 // Placeholder screens for Phase 0. Each moves to its own package as it gets built.
 
@@ -26,7 +27,11 @@ fun HistoryScreen(modifier: Modifier = Modifier) {
 
 @Composable
 fun SettingsScreen(modifier: Modifier = Modifier) {
-    PlaceholderScreen(R.string.nav_settings, R.string.placeholder_settings, modifier)
+    Column(modifier = modifier.fillMaxSize()) {
+        // Debug builds show the dev build updater here; release builds show nothing.
+        DevUpdateSection(modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp))
+        PlaceholderScreen(R.string.nav_settings, R.string.placeholder_settings, Modifier.weight(1f))
+    }
 }
 
 @Composable
