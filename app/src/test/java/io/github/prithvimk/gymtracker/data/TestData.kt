@@ -80,16 +80,22 @@ fun workoutExercise(id: String, workoutId: String, exerciseId: String, position:
         updatedAt = 0L,
     )
 
-fun workoutSet(id: String, workoutExerciseId: String, position: Int = 0, weightKg: Double = 60.0): WorkoutSet =
-    WorkoutSet(
-        id = id,
-        workoutExerciseId = workoutExerciseId,
-        position = position,
-        weightKg = weightKg,
-        reps = 8,
-        rpe = null,
-        type = SetType.WORKING,
-        completedAt = null,
-        createdAt = 0L,
-        updatedAt = 0L,
-    )
+fun workoutSet(
+    id: String,
+    workoutExerciseId: String,
+    position: Int = 0,
+    weightKg: Double = 60.0,
+    reps: Int = 8,
+    type: SetType = SetType.WORKING,
+): WorkoutSet = WorkoutSet(
+    id = id,
+    workoutExerciseId = workoutExerciseId,
+    position = position,
+    weightKg = weightKg,
+    reps = reps,
+    rpe = null,
+    type = type,
+    completedAt = null,
+    createdAt = 0L,
+    updatedAt = 0L,
+)

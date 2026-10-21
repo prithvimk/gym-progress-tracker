@@ -1,15 +1,18 @@
 package io.github.prithvimk.gymtracker.ui.workout
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -19,7 +22,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -31,15 +34,18 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.prithvimk.gymtracker.R
 import io.github.prithvimk.gymtracker.data.db.entity.WorkoutSet
+import io.github.prithvimk.gymtracker.domain.matchPrevious
 import io.github.prithvimk.gymtracker.domain.model.SetType
 
 /** Set edits from the logger. Every callback takes the set's id. */
@@ -57,20 +63,31 @@ class SetActions(
     }
 }
 
-/** The sets of one exercise as a table, with a button to add another set. */
+/**
+ * The sets of one exercise as a table, with a button to add another set. [previousSets] are the
+ * exercise's sets from last session, shown beside their counterparts in the "Last" column.
+ */
 @Composable
-fun SetTable(sets: List<WorkoutSet>, actions: SetActions, onAddSet: () -> Unit, modifier: Modifier = Modifier) {
+fun SetTable(
+    sets: List<WorkoutSet>,
+    previousSets: List<WorkoutSet>,
+    actions: SetActions,
+    onAddSet: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val labels = setLabels(sets.map { it.type })
+    val lastTime = matchPrevious(sets, previousSets)
     Column(modifier = modifier.fillMaxWidth()) {
         if (sets.isNotEmpty()) {
             SetRowLayout(
                 labelCell = { HeaderText(stringResource(R.string.set_header_set)) },
+                lastCell = { HeaderText(stringResource(R.string.set_header_last)) },
                 weightCell = { HeaderText(stringResource(R.string.set_header_weight)) },
                 repsCell = { HeaderText(stringResource(R.string.set_header_reps)) },
                 rpeCell = { HeaderText(stringResource(R.string.set_header_rpe)) },
                 doneCell = { HeaderText(stringResource(R.string.set_header_done)) },
             )
-            sets.forEachIndexed { index, set -> SetRow(set, labels[index], actions) }
+            sets.forEachIndexed { index, set -> SetRow(set, labels[index], lastTime[index], actions) }
         }
         TextButton(onClick = onAddSet, modifier = Modifier.fillMaxWidth()) {
             Icon(Icons.Filled.Add, contentDescription = null)
@@ -80,7 +97,7 @@ fun SetTable(sets: List<WorkoutSet>, actions: SetActions, onAddSet: () -> Unit, 
 }
 
 @Composable
-private fun SetRow(set: WorkoutSet, label: SetLabel, actions: SetActions) {
+private fun SetRow(set: WorkoutSet, label: SetLabel, lastTime: WorkoutSet?, actions: SetActions) {
     val completed = set.completedAt != null
     val labelText = label.text()
     val rowColor =
@@ -88,6 +105,7 @@ private fun SetRow(set: WorkoutSet, label: SetLabel, actions: SetActions) {
     SetRowLayout(
         modifier = Modifier.padding(vertical = 2.dp).background(rowColor, RoundedCornerShape(8.dp)),
         labelCell = { SetLabelButton(set, labelText, actions) },
+        lastCell = { LastTimeText(lastTime) },
         weightCell = {
             SetNumberField(
                 key = set.id,
@@ -179,23 +197,45 @@ private fun SetNumberField(
 ) {
     var text by rememberSaveable(key) { mutableStateOf(initial) }
     var valid by remember(key) { mutableStateOf(true) }
-    OutlinedTextField(
+    val interactionSource = remember { MutableInteractionSource() }
+    // An outlined field with tighter padding than OutlinedTextField's 16dp, so five columns fit a phone.
+    BasicTextField(
         value = text,
         onValueChange = {
             text = it
             valid = parse(it)
         },
-        modifier = Modifier.fillMaxWidth().semantics { contentDescription = description },
-        textStyle = MaterialTheme.typography.bodyLarge.copy(textAlign = TextAlign.Center),
-        isError = !valid,
-        singleLine = true,
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = FIELD_MIN_HEIGHT)
+            .semantics { contentDescription = description },
+        textStyle = MaterialTheme.typography.bodyLarge.copy(
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurface,
+        ),
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = imeAction),
+        singleLine = true,
+        interactionSource = interactionSource,
+        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+        decorationBox = { innerTextField ->
+            OutlinedTextFieldDefaults.DecorationBox(
+                value = text,
+                innerTextField = innerTextField,
+                enabled = true,
+                singleLine = true,
+                visualTransformation = VisualTransformation.None,
+                interactionSource = interactionSource,
+                isError = !valid,
+                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 12.dp),
+            )
+        },
     )
 }
 
 @Composable
 private fun SetRowLayout(
     labelCell: @Composable () -> Unit,
+    lastCell: @Composable () -> Unit,
     weightCell: @Composable () -> Unit,
     repsCell: @Composable () -> Unit,
     rpeCell: @Composable () -> Unit,
@@ -204,15 +244,31 @@ private fun SetRowLayout(
 ) {
     Row(
         modifier = modifier.fillMaxWidth().padding(horizontal = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.width(LABEL_WIDTH), contentAlignment = Alignment.Center) { labelCell() }
+        Box(Modifier.weight(LAST_COLUMN), contentAlignment = Alignment.Center) { lastCell() }
         Box(Modifier.weight(WEIGHT_COLUMN), contentAlignment = Alignment.Center) { weightCell() }
         Box(Modifier.weight(REPS_COLUMN), contentAlignment = Alignment.Center) { repsCell() }
         Box(Modifier.weight(RPE_COLUMN), contentAlignment = Alignment.Center) { rpeCell() }
         Box(Modifier.width(DONE_WIDTH), contentAlignment = Alignment.Center) { doneCell() }
     }
+}
+
+/** Last session's counterpart of a set as "80 × 8", or a dash when there is none. */
+@Composable
+private fun LastTimeText(lastTime: WorkoutSet?) {
+    val text =
+        lastTime?.let { stringResource(R.string.set_last_value, formatSetNumber(it.weightKg).ifEmpty { "0" }, it.reps) }
+            ?: stringResource(R.string.set_last_none)
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.Center,
+        maxLines = 2,
+    )
 }
 
 @Composable
@@ -257,8 +313,10 @@ private inline fun <T> FieldInput<T>.ifValid(save: (T) -> Unit): Boolean = when 
     FieldInput.Invalid -> false
 }
 
-private val LABEL_WIDTH = 48.dp
-private val DONE_WIDTH = 48.dp
+private val FIELD_MIN_HEIGHT = 48.dp
+private val LABEL_WIDTH = 44.dp
+private val DONE_WIDTH = 44.dp
+private const val LAST_COLUMN = 1.1f
 private const val WEIGHT_COLUMN = 1.2f
 private const val REPS_COLUMN = 1f
 private const val RPE_COLUMN = 0.9f
