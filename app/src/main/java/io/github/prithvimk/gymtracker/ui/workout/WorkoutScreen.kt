@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
@@ -27,18 +28,24 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -87,6 +94,8 @@ fun WorkoutRoute(
         onMoveExercise = viewModel::onMoveExercise,
         onRemoveExercise = viewModel::onRemoveExercise,
         onAddSet = viewModel::onAddSet,
+        onWorkoutNotesChange = viewModel::onWorkoutNotesChange,
+        onExerciseNotesChange = viewModel::onExerciseNotesChange,
         setActions = setActions,
         modifier = modifier,
     )
@@ -188,6 +197,8 @@ fun WorkoutScreen(
     onMoveExercise: (workoutExerciseId: String, offset: Int) -> Unit,
     onRemoveExercise: (workoutExerciseId: String) -> Unit,
     onAddSet: (workoutExerciseId: String) -> Unit,
+    onWorkoutNotesChange: (notes: String) -> Unit,
+    onExerciseNotesChange: (workoutExerciseId: String, notes: String) -> Unit,
     setActions: SetActions,
     modifier: Modifier = Modifier,
 ) {
@@ -206,6 +217,8 @@ fun WorkoutScreen(
                 onMoveExercise = onMoveExercise,
                 onRemoveExercise = onRemoveExercise,
                 onAddSet = onAddSet,
+                onWorkoutNotesChange = onWorkoutNotesChange,
+                onExerciseNotesChange = onExerciseNotesChange,
                 setActions = setActions,
                 modifier = modifier,
             )
@@ -247,6 +260,8 @@ private fun ActiveContent(
     onMoveExercise: (workoutExerciseId: String, offset: Int) -> Unit,
     onRemoveExercise: (workoutExerciseId: String) -> Unit,
     onAddSet: (workoutExerciseId: String) -> Unit,
+    onWorkoutNotesChange: (notes: String) -> Unit,
+    onExerciseNotesChange: (workoutExerciseId: String, notes: String) -> Unit,
     setActions: SetActions,
     modifier: Modifier = Modifier,
 ) {
@@ -277,6 +292,15 @@ private fun ActiveContent(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            item(key = WORKOUT_NOTES_KEY) {
+                NotesField(
+                    key = state.workout.id,
+                    initial = state.workout.notes,
+                    label = stringResource(R.string.workout_notes),
+                    placeholder = stringResource(R.string.workout_notes_placeholder),
+                    onChange = onWorkoutNotesChange,
+                )
+            }
             if (state.exercises.isEmpty()) {
                 item {
                     Text(
@@ -295,6 +319,7 @@ private fun ActiveContent(
                     previousSets = state.previousSets[entry.exerciseId].orEmpty(),
                     setActions = setActions,
                     onAddSet = { onAddSet(entry.id) },
+                    onNotesChange = { onExerciseNotesChange(entry.id, it) },
                     canMoveUp = index > 0,
                     canMoveDown = index < state.exercises.lastIndex,
                     onMove = { offset -> onMoveExercise(entry.id, offset) },
@@ -330,6 +355,7 @@ private fun ExerciseCard(
     previousSets: List<WorkoutSet>,
     setActions: SetActions,
     onAddSet: () -> Unit,
+    onNotesChange: (notes: String) -> Unit,
     canMoveUp: Boolean,
     canMoveDown: Boolean,
     onMove: (offset: Int) -> Unit,
@@ -337,6 +363,9 @@ private fun ExerciseCard(
     modifier: Modifier = Modifier,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
+    // A note shows once it has text, or as soon as one is asked for; asking focuses it.
+    var showNote by rememberSaveable(entry.id) { mutableStateOf(entry.notes.isNotEmpty()) }
+    var focusNote by remember { mutableStateOf(false) }
     val muscle = stringResource(entry.muscleGroup.labelRes)
     val equipment = stringResource(entry.equipment.labelRes)
     Card(modifier = modifier.fillMaxWidth()) {
@@ -361,6 +390,16 @@ private fun ExerciseCard(
                         )
                     }
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        if (!showNote) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.workout_add_note)) },
+                                onClick = {
+                                    menuOpen = false
+                                    showNote = true
+                                    focusNote = true
+                                },
+                            )
+                        }
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.workout_move_up)) },
                             enabled = canMoveUp,
@@ -387,6 +426,17 @@ private fun ExerciseCard(
                     }
                 }
             }
+            if (showNote) {
+                NotesField(
+                    key = entry.id,
+                    initial = entry.notes,
+                    label = stringResource(R.string.workout_exercise_note),
+                    placeholder = stringResource(R.string.workout_exercise_note_placeholder),
+                    onChange = onNotesChange,
+                    requestFocus = focusNote,
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                )
+            }
             SetTable(
                 sets = sets,
                 previousSets = previousSets,
@@ -398,7 +448,42 @@ private fun ExerciseCard(
     }
 }
 
+/**
+ * A free-text note that keeps what you type and saves every change. It reads [initial] once per
+ * [key], so saves coming back from the database never move the cursor.
+ */
+@Composable
+private fun NotesField(
+    key: String,
+    initial: String,
+    label: String,
+    placeholder: String,
+    onChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    requestFocus: Boolean = false,
+) {
+    var text by rememberSaveable(key) { mutableStateOf(initial) }
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(requestFocus) {
+        if (requestFocus) focusRequester.requestFocus()
+    }
+    OutlinedTextField(
+        value = text,
+        onValueChange = {
+            text = it
+            onChange(it)
+        },
+        label = { Text(label) },
+        placeholder = { Text(placeholder) },
+        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+        maxLines = NOTES_MAX_LINES,
+        modifier = modifier.fillMaxWidth().focusRequester(focusRequester),
+    )
+}
+
 private const val TICK_MS = 1_000L
+private const val NOTES_MAX_LINES = 5
+private const val WORKOUT_NOTES_KEY = "workout-notes"
 
 @Preview(showBackground = true)
 @Composable
@@ -413,6 +498,8 @@ private fun IdlePreview() {
             onMoveExercise = { _, _ -> },
             onRemoveExercise = {},
             onAddSet = {},
+            onWorkoutNotesChange = {},
+            onExerciseNotesChange = { _, _ -> },
             setActions = SetActions.None,
         )
     }
@@ -433,8 +520,16 @@ private fun ActivePreview() {
         )
     val exercises =
         listOf(
-            WorkoutExerciseEntry("a", "bench", 0, "Barbell Bench Press", MuscleGroup.CHEST, Equipment.BARBELL),
-            WorkoutExerciseEntry("b", "ohp", 1, "Overhead Press", MuscleGroup.SHOULDERS, Equipment.BARBELL),
+            WorkoutExerciseEntry(
+                "a",
+                "bench",
+                0,
+                "Barbell Bench Press",
+                MuscleGroup.CHEST,
+                Equipment.BARBELL,
+                "Seat 4"
+            ),
+            WorkoutExerciseEntry("b", "ohp", 1, "Overhead Press", MuscleGroup.SHOULDERS, Equipment.BARBELL, ""),
         )
     val sets =
         mapOf(
@@ -455,6 +550,8 @@ private fun ActivePreview() {
             onMoveExercise = { _, _ -> },
             onRemoveExercise = {},
             onAddSet = {},
+            onWorkoutNotesChange = {},
+            onExerciseNotesChange = { _, _ -> },
             setActions = SetActions.None,
         )
     }
