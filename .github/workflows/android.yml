@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+    # "closed" only runs the job that deletes the PR's test build.
+    types: [opened, synchronize, reopened, closed]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -11,10 +13,11 @@ concurrency:
 
 jobs:
   build:
+    if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
-      # Pushes to main update the dev release.
+      # Pushes to main update the dev release; pull requests update their own pr-<number> release.
       contents: write
     env:
       VERSION_CODE: ${{ github.run_number }}
@@ -83,17 +86,24 @@ jobs:
             echo "::warning::Skipping the dev release: it needs the DEV_KEYSTORE_BASE64 and DEV_KEYSTORE_PASSWORD secrets."
             exit 0
           fi
-          cp app/build/outputs/apk/debug/*.apk gym-tracker-dev.apk
-          printf '{"versionCode": %d, "commit": "%s"}\n' "$VERSION_CODE" "$GITHUB_SHA" > version.json
-          git tag -f dev "$GITHUB_SHA"
-          git push -f origin refs/tags/dev
-          if ! gh release view dev > /dev/null 2>&1; then
-            gh release create dev --prerelease --verify-tag --title "Dev build" --notes "Latest build of main."
+          .github/scripts/publish-build.sh dev "Dev build" \
+            "Build $VERSION_CODE from ${GITHUB_SHA::7}. Latest build of main."
+
+      # Each open PR gets a pre-release, tagged "pr-<number>", that the in-app updater can install
+      # for testing before merging. Fork PRs get no secrets, so they skip this.
+      - name: Publish PR test build
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          if [ -z "${DEV_KEYSTORE_PATH:-}" ]; then
+            echo "::warning::Skipping the PR test build: it needs the dev signing key secrets."
+            exit 0
           fi
-          gh release edit dev --notes "Build $VERSION_CODE from ${GITHUB_SHA::7}. Latest build of main."
-          # The APK goes up first, so version.json never points at a build that is not there yet.
-          gh release upload dev gym-tracker-dev.apk --clobber
-          gh release upload dev version.json --clobber
+          .github/scripts/publish-build.sh "pr-$PR_NUMBER" "PR #$PR_NUMBER: $PR_TITLE" \
+            "Test build $VERSION_CODE of PR #$PR_NUMBER at ${GITHUB_SHA::7}. Deleted when the PR closes."
 
       - name: Upload Room schemas
         if: always()
@@ -121,3 +131,17 @@ jobs:
           path: |
             app/build/reports/
             app/build/test-results/
+
+  # A closed PR's test build is no longer wanted, so its release and tag go.
+  remove-pr-build:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Delete the PR test build
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: gh release delete "pr-$PR_NUMBER" --cleanup-tag --yes || echo "No test build to delete."
