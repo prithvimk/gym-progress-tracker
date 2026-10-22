@@ -31,8 +31,9 @@ data class KeypadState(val target: SetFieldRef, val text: String, val replaceOnT
     /** Whether [text] is a value the field accepts, and so has been saved. */
     val isValid: Boolean
         get() {
+            // Inside a getter a bare `field` is the property's own backing field, so this names the target's.
             val input =
-                when (field) {
+                when (target.field) {
                     SetField.WEIGHT -> parseWeight(text)
                     SetField.REPS -> parseReps(text)
                     SetField.RPE -> parseRpe(text)
