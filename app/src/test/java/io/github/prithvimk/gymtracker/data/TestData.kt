@@ -69,16 +69,24 @@ fun workout(id: String, startedAt: Long = 0L, endedAt: Long? = null, routineId: 
     updatedAt = 0L,
 )
 
-fun workoutExercise(id: String, workoutId: String, exerciseId: String, position: Int = 0): WorkoutExercise =
-    WorkoutExercise(
-        id = id,
-        workoutId = workoutId,
-        exerciseId = exerciseId,
-        position = position,
-        notes = "",
-        createdAt = 0L,
-        updatedAt = 0L,
-    )
+fun workoutExercise(
+    id: String,
+    workoutId: String,
+    exerciseId: String,
+    position: Int = 0,
+    restSeconds: Int? = null,
+): WorkoutExercise = WorkoutExercise(
+    id = id,
+    workoutId = workoutId,
+    exerciseId = exerciseId,
+    position = position,
+    notes = "",
+    repMin = null,
+    repMax = null,
+    restSeconds = restSeconds,
+    createdAt = 0L,
+    updatedAt = 0L,
+)
 
 fun workoutSet(
     id: String,

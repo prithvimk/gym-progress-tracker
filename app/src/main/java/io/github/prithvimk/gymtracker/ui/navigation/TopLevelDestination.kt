@@ -14,6 +14,8 @@ enum class TopLevelDestination(val route: String, @param:StringRes val labelRes:
     companion object {
         val START = WORKOUT
 
-        fun fromRoute(route: String?): TopLevelDestination? = entries.firstOrNull { it.route == route }
+        /** The tab a route belongs to: the tab itself, or a screen under it such as "workout/routine". */
+        fun fromRoute(route: String?): TopLevelDestination? =
+            entries.firstOrNull { route == it.route || route?.startsWith("${it.route}/") == true }
     }
 }

@@ -13,15 +13,19 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import io.github.prithvimk.gymtracker.ui.exercises.ExercisesRoute
 import io.github.prithvimk.gymtracker.ui.navigation.TopLevelDestination
 import io.github.prithvimk.gymtracker.ui.navigation.icon
 import io.github.prithvimk.gymtracker.ui.navigation.tabEnterTransition
 import io.github.prithvimk.gymtracker.ui.navigation.tabExitTransition
+import io.github.prithvimk.gymtracker.ui.routines.RoutineEditorRoute
+import io.github.prithvimk.gymtracker.ui.routines.RoutineEditorViewModel
 import io.github.prithvimk.gymtracker.ui.screens.HistoryScreen
 import io.github.prithvimk.gymtracker.ui.screens.SettingsScreen
 import io.github.prithvimk.gymtracker.ui.workout.WorkoutRoute
@@ -40,6 +44,11 @@ fun GymTrackerRoot() {
                     NavigationBarItem(
                         selected = destination == current,
                         onClick = {
+                            // Tapping the current tab again goes back to its top, out of any screen under it.
+                            if (destination == current) {
+                                navController.popBackStack(destination.route, inclusive = false)
+                                return@NavigationBarItem
+                            }
                             navController.navigate(destination.route) {
                                 popUpTo(navController.graph.findStartDestination().id) {
                                     saveState = true
@@ -66,10 +75,36 @@ fun GymTrackerRoot() {
             popEnterTransition = { tabEnterTransition },
             popExitTransition = { tabExitTransition },
         ) {
-            composable(TopLevelDestination.WORKOUT.route) { WorkoutRoute() }
+            composable(TopLevelDestination.WORKOUT.route) {
+                WorkoutRoute(onEditRoutine = { navController.navigate(routineEditorRoute(it)) })
+            }
+            composable(
+                ROUTINE_EDITOR_ROUTE,
+                arguments =
+                listOf(
+                    navArgument(RoutineEditorViewModel.ROUTINE_ID_ARG) {
+                        type = NavType.StringType
+                        nullable = true
+                    },
+                ),
+            ) {
+                RoutineEditorRoute(onDone = { navController.popBackStack() })
+            }
             composable(TopLevelDestination.HISTORY.route) { HistoryScreen() }
             composable(TopLevelDestination.EXERCISES.route) { ExercisesRoute() }
             composable(TopLevelDestination.SETTINGS.route) { SettingsScreen() }
         }
     }
+}
+
+private const val ROUTINE_ID = RoutineEditorViewModel.ROUTINE_ID_ARG
+private const val ROUTINE_EDITOR_ROUTE = "workout/routine?$ROUTINE_ID={$ROUTINE_ID}"
+
+/** The routine editor for routine [id], or for a new routine when [id] is null. */
+private fun routineEditorRoute(id: String?): String = if (id ==
+    null
+) {
+    "workout/routine"
+} else {
+    "workout/routine?$ROUTINE_ID=$id"
 }

@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Upsert
+import io.github.prithvimk.gymtracker.data.db.entity.RoutineExercise
 import io.github.prithvimk.gymtracker.data.db.entity.Workout
 import io.github.prithvimk.gymtracker.data.db.entity.WorkoutExercise
 import io.github.prithvimk.gymtracker.data.db.entity.WorkoutSet
@@ -22,6 +23,9 @@ data class WorkoutExerciseEntry(
     val muscleGroup: MuscleGroup,
     val equipment: Equipment,
     val notes: String,
+    val repMin: Int?,
+    val repMax: Int?,
+    val restSeconds: Int?,
 )
 
 @Dao
@@ -49,6 +53,51 @@ interface WorkoutDao {
     )
     suspend fun insertEmptyIfNoneActive(id: String, startedAt: Long)
 
+    /**
+     * Starts a workout from a routine unless one is already active: its exercises in order, each with
+     * its target number of working sets prefilled from last time, and its rep range and rest copied over.
+     */
+    @Transaction
+    suspend fun insertFromRoutineIfNoneActive(id: String, routineId: String, startedAt: Long, newId: () -> String) {
+        if (getActive() != null) return
+        upsert(
+            Workout(
+                id = id,
+                routineId = routineId,
+                startedAt = startedAt,
+                endedAt = null,
+                notes = "",
+                createdAt = startedAt,
+                updatedAt = startedAt,
+            ),
+        )
+        getRoutinePlan(routineId).forEachIndexed { index, planned ->
+            val workoutExerciseId = newId()
+            upsertExercise(
+                WorkoutExercise(
+                    id = workoutExerciseId,
+                    workoutId = id,
+                    exerciseId = planned.exerciseId,
+                    position = index,
+                    notes = "",
+                    repMin = planned.repMin,
+                    repMax = planned.repMax,
+                    restSeconds = planned.restSeconds,
+                    createdAt = startedAt,
+                    updatedAt = startedAt,
+                ),
+            )
+            repeat(planned.targetSets) { appendSet(newId(), workoutExerciseId, startedAt) }
+        }
+    }
+
+    @Query("SELECT * FROM routine_exercises WHERE routineId = :routineId ORDER BY position")
+    suspend fun getRoutinePlan(routineId: String): List<RoutineExercise>
+
+    /** The name of the routine the workout was started from, or null. */
+    @Query("SELECT r.name FROM workouts w JOIN routines r ON r.id = w.routineId WHERE w.id = :workoutId")
+    fun observeRoutineName(workoutId: String): Flow<String?>
+
     @Query("UPDATE workouts SET endedAt = :endedAt, updatedAt = :endedAt WHERE id = :id AND endedAt IS NULL")
     suspend fun finish(id: String, endedAt: Long)
 
@@ -69,7 +118,8 @@ interface WorkoutDao {
 
     @Query(
         """
-        SELECT we.id, we.exerciseId, we.position, e.name, e.muscleGroup, e.equipment, we.notes
+        SELECT we.id, we.exerciseId, we.position, e.name, e.muscleGroup, e.equipment, we.notes,
+            we.repMin, we.repMax, we.restSeconds
         FROM workout_exercises we JOIN exercises e ON e.id = we.exerciseId
         WHERE we.workoutId = :workoutId
         ORDER BY we.position
@@ -117,6 +167,9 @@ interface WorkoutDao {
 
     @Query("UPDATE workout_exercises SET notes = :notes, updatedAt = :updatedAt WHERE id = :id")
     suspend fun updateExerciseNotes(id: String, notes: String, updatedAt: Long)
+
+    @Query("UPDATE workout_exercises SET restSeconds = :restSeconds, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun updateExerciseRest(id: String, restSeconds: Int, updatedAt: Long)
 
     @Query("DELETE FROM workout_exercises WHERE id = :id")
     suspend fun deleteExerciseById(id: String)

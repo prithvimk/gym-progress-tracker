@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -52,8 +53,11 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -62,16 +66,24 @@ import io.github.prithvimk.gymtracker.R
 import io.github.prithvimk.gymtracker.data.db.dao.WorkoutExerciseEntry
 import io.github.prithvimk.gymtracker.data.db.entity.Workout
 import io.github.prithvimk.gymtracker.data.db.entity.WorkoutSet
+import io.github.prithvimk.gymtracker.data.repository.RoutineSummary
+import io.github.prithvimk.gymtracker.domain.DEFAULT_REST_SECONDS
+import io.github.prithvimk.gymtracker.domain.MAX_REST_SECONDS
 import io.github.prithvimk.gymtracker.domain.WorkoutSummary
 import io.github.prithvimk.gymtracker.domain.model.Equipment
 import io.github.prithvimk.gymtracker.domain.model.MuscleGroup
 import io.github.prithvimk.gymtracker.domain.model.SetType
+import io.github.prithvimk.gymtracker.timer.RestTimerState
+import io.github.prithvimk.gymtracker.ui.components.Stepper
+import io.github.prithvimk.gymtracker.ui.components.restText
 import io.github.prithvimk.gymtracker.ui.exercises.labelRes
 import io.github.prithvimk.gymtracker.ui.theme.GymTrackerTheme
 import kotlinx.coroutines.delay
 
+/** The Workout tab. [onEditRoutine] opens the routine editor on a routine, or on a new one for null. */
 @Composable
 fun WorkoutRoute(
+    onEditRoutine: (routineId: String?) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: WorkoutViewModel = viewModel(factory = WorkoutViewModel.factory),
 ) {
@@ -79,8 +91,14 @@ fun WorkoutRoute(
     val confirmingDiscard by viewModel.confirmingDiscard.collectAsStateWithLifecycle()
     val picker by viewModel.picker.collectAsStateWithLifecycle()
     val pendingRemoval by viewModel.pendingRemoval.collectAsStateWithLifecycle()
-    val summary by viewModel.summary.collectAsStateWithLifecycle()
+    val finished by viewModel.finished.collectAsStateWithLifecycle()
     val keypad by viewModel.keypad.collectAsStateWithLifecycle()
+    val routines by viewModel.routines.collectAsStateWithLifecycle()
+    val rest by viewModel.rest.collectAsStateWithLifecycle()
+    val restEdit by viewModel.restEdit.collectAsStateWithLifecycle()
+    // Asked when a workout starts, since that is when the rest timer will soon want to notify.
+    val requestNotifications = rememberNotificationPermissionRequest()
+    val restActions = remember(viewModel) { RestActions(viewModel::onRestAdjust, viewModel::onRestSkip) }
     val setActions =
         remember(viewModel) {
             SetActions(
@@ -102,7 +120,10 @@ fun WorkoutRoute(
 
     WorkoutScreen(
         state = state,
-        onStartClick = viewModel::onStartClick,
+        onStartClick = {
+            requestNotifications()
+            viewModel.onStartClick()
+        },
         onFinishClick = viewModel::onFinishClick,
         onDiscardClick = viewModel::onDiscardClick,
         onAddExercisesClick = viewModel::onAddExercisesClick,
@@ -114,6 +135,15 @@ fun WorkoutRoute(
         setActions = setActions,
         keypad = keypad,
         keypadActions = keypadActions,
+        routines = routines,
+        onStartRoutineClick = {
+            requestNotifications()
+            viewModel.onStartRoutineClick(it)
+        },
+        onEditRoutine = onEditRoutine,
+        rest = rest,
+        restActions = restActions,
+        onRestEditClick = viewModel::onRestEditClick,
         modifier = modifier,
     )
 
@@ -145,7 +175,51 @@ fun WorkoutRoute(
         )
     }
 
-    summary?.let { WorkoutSummaryDialog(summary = it, onDismiss = viewModel::onSummaryDismiss) }
+    finished?.let { workout ->
+        val routineName = workout.savingAsRoutine
+        if (routineName == null) {
+            WorkoutSummaryDialog(
+                summary = workout.summary,
+                onSaveAsRoutine = viewModel::onSaveAsRoutineClick,
+                onDismiss = viewModel::onSummaryDismiss,
+            )
+        } else {
+            SaveRoutineDialog(
+                name = routineName,
+                showError = workout.routineNameError,
+                onNameChange = viewModel::onRoutineNameChange,
+                onSave = viewModel::onSaveRoutineConfirm,
+                onDismiss = viewModel::onSaveRoutineDismiss,
+            )
+        }
+    }
+
+    restEdit?.let { edit ->
+        AlertDialog(
+            onDismissRequest = viewModel::onRestEditDismiss,
+            title = { Text(stringResource(R.string.workout_rest_dialog_title, edit.exerciseName)) },
+            text = {
+                Stepper(
+                    label = stringResource(R.string.rest_label),
+                    value = restText(edit.seconds),
+                    onDecrease = { viewModel.onRestEditStep(up = false) },
+                    onIncrease = { viewModel.onRestEditStep(up = true) },
+                    canDecrease = edit.seconds > 0,
+                    canIncrease = edit.seconds < MAX_REST_SECONDS,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = viewModel::onRestEditSave) {
+                    Text(stringResource(R.string.workout_rest_dialog_save))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = viewModel::onRestEditDismiss) {
+                    Text(stringResource(R.string.workout_rest_dialog_cancel))
+                }
+            },
+        )
+    }
 
     if (confirmingDiscard) {
         AlertDialog(
@@ -167,7 +241,7 @@ fun WorkoutRoute(
 }
 
 @Composable
-private fun WorkoutSummaryDialog(summary: WorkoutSummary, onDismiss: () -> Unit) {
+private fun WorkoutSummaryDialog(summary: WorkoutSummary, onSaveAsRoutine: () -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.workout_summary_title)) },
@@ -192,6 +266,48 @@ private fun WorkoutSummaryDialog(summary: WorkoutSummary, onDismiss: () -> Unit)
         },
         confirmButton = {
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.workout_summary_done)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onSaveAsRoutine) { Text(stringResource(R.string.workout_save_as_routine)) }
+        },
+    )
+}
+
+@Composable
+private fun SaveRoutineDialog(
+    name: String,
+    showError: Boolean,
+    onNameChange: (String) -> Unit,
+    onSave: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focusRequester.requestFocus() }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.workout_save_routine_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(stringResource(R.string.workout_save_routine_body))
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = onNameChange,
+                    label = { Text(stringResource(R.string.workout_save_routine_name)) },
+                    isError = showError,
+                    supportingText = {
+                        if (showError) Text(stringResource(R.string.workout_save_routine_error_blank))
+                    },
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onSave) { Text(stringResource(R.string.workout_save_routine_save)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.workout_save_routine_cancel)) }
         },
     )
 }
@@ -220,12 +336,18 @@ fun WorkoutScreen(
     modifier: Modifier = Modifier,
     keypad: KeypadState? = null,
     keypadActions: KeypadActions = KeypadActions.None,
+    routines: List<RoutineSummary> = emptyList(),
+    onStartRoutineClick: (routineId: String) -> Unit = {},
+    onEditRoutine: (routineId: String?) -> Unit = {},
+    rest: RestTimerState? = null,
+    restActions: RestActions = RestActions.None,
+    onRestEditClick: (workoutExerciseId: String) -> Unit = {},
 ) {
     when (state) {
         WorkoutUiState.Loading ->
             Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
 
-        WorkoutUiState.Idle -> IdleContent(onStartClick, modifier)
+        WorkoutUiState.Idle -> IdleContent(onStartClick, routines, onStartRoutineClick, onEditRoutine, modifier)
 
         is WorkoutUiState.Active ->
             ActiveContent(
@@ -242,32 +364,115 @@ fun WorkoutScreen(
                 modifier = modifier,
                 keypad = keypad,
                 keypadActions = keypadActions,
+                rest = rest,
+                restActions = restActions,
+                onRestEditClick = onRestEditClick,
             )
     }
 }
 
 @Composable
-private fun IdleContent(onStartClick: () -> Unit, modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier.fillMaxSize().padding(24.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
+private fun IdleContent(
+    onStartClick: () -> Unit,
+    routines: List<RoutineSummary>,
+    onStartRoutineClick: (routineId: String) -> Unit,
+    onEditRoutine: (routineId: String?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(
-            text = stringResource(R.string.workout_idle_title),
-            style = MaterialTheme.typography.headlineMedium,
-        )
-        Text(
-            text = stringResource(R.string.workout_idle_body),
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 8.dp),
-        )
-        Spacer(Modifier.height(24.dp))
-        Button(onClick = onStartClick) {
-            Icon(Icons.Filled.PlayArrow, contentDescription = null)
-            Text(stringResource(R.string.workout_start_empty), modifier = Modifier.padding(start = 8.dp))
+        item {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.workout_idle_title),
+                    style = MaterialTheme.typography.headlineMedium,
+                )
+                Text(
+                    text = stringResource(R.string.workout_idle_body),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+                Spacer(Modifier.height(24.dp))
+                Button(onClick = onStartClick) {
+                    Icon(Icons.Filled.PlayArrow, contentDescription = null)
+                    Text(stringResource(R.string.workout_start_empty), modifier = Modifier.padding(start = 8.dp))
+                }
+            }
+        }
+        item {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = stringResource(R.string.workout_idle_routines),
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = { onEditRoutine(null) }) {
+                    Icon(Icons.Filled.Add, contentDescription = null)
+                    Text(stringResource(R.string.workout_new_routine), modifier = Modifier.padding(start = 8.dp))
+                }
+            }
+        }
+        if (routines.isEmpty()) {
+            item {
+                Text(
+                    text = stringResource(R.string.workout_idle_no_routines),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                )
+            }
+        }
+        items(routines, key = { it.routine.id }) { summary ->
+            RoutineCard(
+                summary = summary,
+                onStart = { onStartRoutineClick(summary.routine.id) },
+                onEdit = { onEditRoutine(summary.routine.id) },
+                modifier = Modifier.animateItem(),
+            )
+        }
+    }
+}
+
+@Composable
+private fun RoutineCard(
+    summary: RoutineSummary,
+    onStart: () -> Unit,
+    onEdit: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val name = summary.routine.name
+    Card(onClick = onEdit, modifier = modifier.fillMaxWidth()) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(name, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = summary.exerciseNames.joinToString().ifEmpty {
+                        stringResource(R.string.workout_routine_empty)
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            val description = stringResource(R.string.workout_start_routine_description, name)
+            FilledTonalButton(
+                onClick = onStart,
+                modifier = Modifier.padding(start = 8.dp).semantics { contentDescription = description },
+            ) {
+                Text(stringResource(R.string.workout_start_routine))
+            }
         }
     }
 }
@@ -288,6 +493,9 @@ private fun ActiveContent(
     modifier: Modifier = Modifier,
     keypad: KeypadState? = null,
     keypadActions: KeypadActions = KeypadActions.None,
+    rest: RestTimerState? = null,
+    restActions: RestActions = RestActions.None,
+    onRestEditClick: (workoutExerciseId: String) -> Unit = {},
 ) {
     val startedAt = state.workout.startedAt
     // Elapsed time is derived from startedAt, so it stays right across process death.
@@ -319,7 +527,7 @@ private fun ActiveContent(
     Column(modifier = modifier.fillMaxSize().pointerInput(keypadActions) { detectTapGestures { endEditing() } }) {
         Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp)) {
             Text(
-                text = stringResource(R.string.workout_active_title),
+                text = state.routineName ?: stringResource(R.string.workout_active_title),
                 style = MaterialTheme.typography.headlineMedium,
             )
             Text(
@@ -367,6 +575,7 @@ private fun ActiveContent(
                     canMoveDown = index < state.exercises.lastIndex,
                     onMove = { offset -> onMoveExercise(entry.id, offset) },
                     onRemove = { onRemoveExercise(entry.id) },
+                    onRestEditClick = { onRestEditClick(entry.id) },
                     modifier = Modifier.animateItem(),
                 )
             }
@@ -377,6 +586,8 @@ private fun ActiveContent(
                 }
             }
         }
+        // Stays up over the keypad too, since the next set's numbers are often typed while resting.
+        if (rest != null && !imeVisible) RestBar(rest = rest, actions = restActions)
         if (openKeypad != null) {
             Keypad(field = openKeypad.field, actions = keypadActions)
         } else if (!imeVisible) {
@@ -409,6 +620,7 @@ private fun ExerciseCard(
     canMoveDown: Boolean,
     onMove: (offset: Int) -> Unit,
     onRemove: () -> Unit,
+    onRestEditClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
@@ -430,6 +642,11 @@ private fun ExerciseCard(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    Text(
+                        text = targetsText(entry),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
                 }
                 Box {
                     IconButton(onClick = { menuOpen = true }) {
@@ -449,6 +666,13 @@ private fun ExerciseCard(
                                 },
                             )
                         }
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.workout_rest_time)) },
+                            onClick = {
+                                menuOpen = false
+                                onRestEditClick()
+                            },
+                        )
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.workout_move_up)) },
                             enabled = canMoveUp,
@@ -497,6 +721,16 @@ private fun ExerciseCard(
             )
         }
     }
+}
+
+/** The exercise's rep range from its routine, if any, and its rest time: "8–12 reps · Rest 2:00". */
+@Composable
+private fun targetsText(entry: WorkoutExerciseEntry): String {
+    val rest = stringResource(R.string.workout_exercise_rest, restText(entry.restSeconds ?: DEFAULT_REST_SECONDS))
+    val min = entry.repMin
+    val max = entry.repMax
+    if (min == null || max == null) return rest
+    return stringResource(R.string.exercise_subtitle, stringResource(R.string.workout_exercise_targets, min, max), rest)
 }
 
 /**
@@ -578,9 +812,23 @@ private fun ActivePreview() {
                 "Barbell Bench Press",
                 MuscleGroup.CHEST,
                 Equipment.BARBELL,
-                "Seat 4"
+                "Seat 4",
+                repMin = 6,
+                repMax = 8,
+                restSeconds = 180,
             ),
-            WorkoutExerciseEntry("b", "ohp", 1, "Overhead Press", MuscleGroup.SHOULDERS, Equipment.BARBELL, ""),
+            WorkoutExerciseEntry(
+                "b",
+                "ohp",
+                1,
+                "Overhead Press",
+                MuscleGroup.SHOULDERS,
+                Equipment.BARBELL,
+                "",
+                repMin = null,
+                repMax = null,
+                restSeconds = null,
+            ),
         )
     val sets =
         mapOf(

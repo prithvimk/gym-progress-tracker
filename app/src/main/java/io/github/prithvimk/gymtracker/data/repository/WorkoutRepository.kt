@@ -30,6 +30,17 @@ class WorkoutRepository(
         return checkNotNull(workoutDao.getActive()) { "No active workout after starting one" }
     }
 
+    /**
+     * Starts a workout from the routine, with its exercises and target sets already in place and
+     * prefilled from last time, or returns the active workout if there already is one.
+     */
+    suspend fun startWorkoutFromRoutine(routineId: String): Workout {
+        workoutDao.insertFromRoutineIfNoneActive(id = newId(), routineId = routineId, startedAt = now(), newId = newId)
+        return checkNotNull(workoutDao.getActive()) { "No active workout after starting one" }
+    }
+
+    fun observeRoutineName(workoutId: String): Flow<String?> = workoutDao.observeRoutineName(workoutId)
+
     /** Ends the workout. Does nothing if it has already finished. */
     suspend fun finishWorkout(id: String) {
         workoutDao.finish(id, endedAt = now())
@@ -62,6 +73,11 @@ class WorkoutRepository(
 
     suspend fun updateExerciseNotes(workoutExerciseId: String, notes: String) {
         workoutDao.updateExerciseNotes(workoutExerciseId, notes, updatedAt = now())
+    }
+
+    /** Sets the exercise's rest between sets for this workout; 0 turns the rest timer off. */
+    suspend fun updateExerciseRest(workoutExerciseId: String, restSeconds: Int) {
+        workoutDao.updateExerciseRest(workoutExerciseId, restSeconds, updatedAt = now())
     }
 
     fun observeSetsForWorkout(workoutId: String): Flow<List<WorkoutSet>> = workoutDao.observeSetsForWorkout(workoutId)
