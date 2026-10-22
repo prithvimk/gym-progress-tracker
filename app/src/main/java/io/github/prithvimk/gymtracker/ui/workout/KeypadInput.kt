@@ -30,12 +30,15 @@ data class KeypadState(val target: SetFieldRef, val text: String, val replaceOnT
 
     /** Whether [text] is a value the field accepts, and so has been saved. */
     val isValid: Boolean
-        get() =
-            when (field) {
-                SetField.WEIGHT -> parseWeight(text)
-                SetField.REPS -> parseReps(text)
-                SetField.RPE -> parseRpe(text)
-            } is FieldInput.Valid
+        get() {
+            val input =
+                when (field) {
+                    SetField.WEIGHT -> parseWeight(text)
+                    SetField.REPS -> parseReps(text)
+                    SetField.RPE -> parseRpe(text)
+                }
+            return input is FieldInput.Valid
+        }
 }
 
 fun KeypadState.press(key: KeypadKey): KeypadState {
