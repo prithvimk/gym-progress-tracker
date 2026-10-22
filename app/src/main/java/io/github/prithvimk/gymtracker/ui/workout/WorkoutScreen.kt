@@ -1,5 +1,6 @@
 package io.github.prithvimk.gymtracker.ui.workout
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -79,15 +80,23 @@ fun WorkoutRoute(
     val picker by viewModel.picker.collectAsStateWithLifecycle()
     val pendingRemoval by viewModel.pendingRemoval.collectAsStateWithLifecycle()
     val summary by viewModel.summary.collectAsStateWithLifecycle()
+    val keypad by viewModel.keypad.collectAsStateWithLifecycle()
     val setActions =
         remember(viewModel) {
             SetActions(
-                onWeightChange = viewModel::onSetWeightChange,
-                onRepsChange = viewModel::onSetRepsChange,
-                onRpeChange = viewModel::onSetRpeChange,
                 onTypeChange = viewModel::onSetTypeChange,
                 onCompletedChange = viewModel::onSetCompletedChange,
                 onDelete = viewModel::onDeleteSet,
+                onFieldClick = viewModel::onFieldClick,
+            )
+        }
+    val keypadActions =
+        remember(viewModel) {
+            KeypadActions(
+                onKey = viewModel::onKeypadKey,
+                onStep = viewModel::onKeypadStep,
+                onNext = viewModel::onKeypadNext,
+                onHide = viewModel::onKeypadHide,
             )
         }
 
@@ -103,6 +112,8 @@ fun WorkoutRoute(
         onWorkoutNotesChange = viewModel::onWorkoutNotesChange,
         onExerciseNotesChange = viewModel::onExerciseNotesChange,
         setActions = setActions,
+        keypad = keypad,
+        keypadActions = keypadActions,
         modifier = modifier,
     )
 
@@ -207,6 +218,8 @@ fun WorkoutScreen(
     onExerciseNotesChange: (workoutExerciseId: String, notes: String) -> Unit,
     setActions: SetActions,
     modifier: Modifier = Modifier,
+    keypad: KeypadState? = null,
+    keypadActions: KeypadActions = KeypadActions.None,
 ) {
     when (state) {
         WorkoutUiState.Loading ->
@@ -227,6 +240,8 @@ fun WorkoutScreen(
                 onExerciseNotesChange = onExerciseNotesChange,
                 setActions = setActions,
                 modifier = modifier,
+                keypad = keypad,
+                keypadActions = keypadActions,
             )
     }
 }
@@ -271,6 +286,8 @@ private fun ActiveContent(
     onExerciseNotesChange: (workoutExerciseId: String, notes: String) -> Unit,
     setActions: SetActions,
     modifier: Modifier = Modifier,
+    keypad: KeypadState? = null,
+    keypadActions: KeypadActions = KeypadActions.None,
 ) {
     val startedAt = state.workout.startedAt
     // Elapsed time is derived from startedAt, so it stays right across process death.
@@ -286,13 +303,20 @@ private fun ActiveContent(
     val focusManager = LocalFocusManager.current
     val imeVisible = WindowInsets.isImeVisible
     LaunchedEffect(imeVisible) {
-        if (!imeVisible) focusManager.clearFocus()
+        // The system keyboard is up for a note, which takes over from the keypad.
+        if (imeVisible) keypadActions.onHide() else focusManager.clearFocus()
+    }
+    // A keypad on a set that has since gone (deleted elsewhere, or its exercise removed) is closed.
+    val openKeypad = keypad?.takeIf { k -> state.sets.values.any { sets -> sets.any { it.id == k.target.setId } } }
+    BackHandler(enabled = openKeypad != null, onBack = keypadActions.onHide)
+
+    val endEditing = {
+        focusManager.clearFocus()
+        keypadActions.onHide()
     }
 
     // Fields and buttons handle their own taps; a tap on anything else lands here.
-    Column(
-        modifier = modifier.fillMaxSize().pointerInput(Unit) { detectTapGestures { focusManager.clearFocus() } },
-    ) {
+    Column(modifier = modifier.fillMaxSize().pointerInput(keypadActions) { detectTapGestures { endEditing() } }) {
         Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp)) {
             Text(
                 text = stringResource(R.string.workout_active_title),
@@ -335,6 +359,7 @@ private fun ActiveContent(
                     entry = entry,
                     sets = state.sets[entry.id].orEmpty(),
                     previousSets = state.previousSets[entry.exerciseId].orEmpty(),
+                    keypad = openKeypad,
                     setActions = setActions,
                     onAddSet = { onAddSet(entry.id) },
                     onNotesChange = { onExerciseNotesChange(entry.id, it) },
@@ -352,8 +377,10 @@ private fun ActiveContent(
                 }
             }
         }
-        // Hidden while typing, so the keyboard leaves as much of the list visible as it can.
-        if (!imeVisible) {
+        if (openKeypad != null) {
+            Keypad(field = openKeypad.field, actions = keypadActions)
+        } else if (!imeVisible) {
+            // Hidden while typing, so the keyboard leaves as much of the list visible as it can.
             Row(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -374,6 +401,7 @@ private fun ExerciseCard(
     entry: WorkoutExerciseEntry,
     sets: List<WorkoutSet>,
     previousSets: List<WorkoutSet>,
+    keypad: KeypadState?,
     setActions: SetActions,
     onAddSet: () -> Unit,
     onNotesChange: (notes: String) -> Unit,
@@ -462,6 +490,7 @@ private fun ExerciseCard(
             SetTable(
                 sets = sets,
                 previousSets = previousSets,
+                keypad = keypad,
                 actions = setActions,
                 onAddSet = onAddSet,
                 modifier = Modifier.padding(start = 4.dp, end = 4.dp, bottom = 4.dp),

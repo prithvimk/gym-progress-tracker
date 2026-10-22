@@ -61,6 +61,15 @@
     <string name="set_rpe_description">Set %1$s RPE, optional</string>
     <string name="set_complete_description">Set %1$s done</string>
     <string name="set_delete">Delete set</string>
+
+    <!-- Keypad -->
+    <string name="keypad_step_down">−%1$s</string>
+    <string name="keypad_step_up">+%1$s</string>
+    <string name="keypad_step_down_description">Decrease by %1$s</string>
+    <string name="keypad_step_up_description">Increase by %1$s</string>
+    <string name="keypad_delete">Delete</string>
+    <string name="keypad_hide">Hide keypad</string>
+    <string name="keypad_next">Next</string>
     <string name="set_type_warmup">Warm-up</string>
     <string name="set_type_working">Working</string>
     <string name="set_type_drop">Drop set</string>

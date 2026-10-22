@@ -57,7 +57,7 @@ fun setLabels(types: List<SetType>): List<SetLabel> {
     }
 }
 
-private const val MAX_WEIGHT_KG = 2_000.0
-private const val MAX_REPS = 999
-private const val MIN_RPE = 1.0
-private const val MAX_RPE = 10.0
+internal const val MAX_WEIGHT_KG = 2_000.0
+internal const val MAX_REPS = 999
+internal const val MIN_RPE = 1.0
+internal const val MAX_RPE = 10.0

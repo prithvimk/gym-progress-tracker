@@ -2,8 +2,10 @@
 
 package io.github.prithvimk.gymtracker.ui.workout
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,9 +15,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Checkbox
@@ -25,25 +27,23 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.prithvimk.gymtracker.R
@@ -54,26 +54,26 @@ import io.github.prithvimk.gymtracker.domain.model.SetType
 /** Set edits from the logger. Every callback takes the set's id. */
 @Immutable
 class SetActions(
-    val onWeightChange: (setId: String, weightKg: Double) -> Unit,
-    val onRepsChange: (setId: String, reps: Int) -> Unit,
-    val onRpeChange: (setId: String, rpe: Double?) -> Unit,
     val onTypeChange: (setId: String, type: SetType) -> Unit,
     val onCompletedChange: (setId: String, completed: Boolean) -> Unit,
     val onDelete: (setId: String) -> Unit,
+    val onFieldClick: (setId: String, field: SetField) -> Unit,
 ) {
     companion object {
-        val None = SetActions({ _, _ -> }, { _, _ -> }, { _, _ -> }, { _, _ -> }, { _, _ -> }, {})
+        val None = SetActions({ _, _ -> }, { _, _ -> }, {}, { _, _ -> })
     }
 }
 
 /**
  * The sets of one exercise as a table, with a button to add another set. [previousSets] are the
- * exercise's sets from last session, shown beside their counterparts in the "Last" column.
+ * exercise's sets from last session, shown beside their counterparts in the "Last" column. [keypad]
+ * is the keypad's edit, if it is typing into one of these sets.
  */
 @Composable
 fun SetTable(
     sets: List<WorkoutSet>,
     previousSets: List<WorkoutSet>,
+    keypad: KeypadState?,
     actions: SetActions,
     onAddSet: () -> Unit,
     modifier: Modifier = Modifier,
@@ -90,7 +90,9 @@ fun SetTable(
                 rpeCell = { HeaderText(stringResource(R.string.set_header_rpe)) },
                 doneCell = { HeaderText(stringResource(R.string.set_header_done)) },
             )
-            sets.forEachIndexed { index, set -> SetRow(set, labels[index], lastTime[index], actions) }
+            sets.forEachIndexed { index, set ->
+                SetRow(set, labels[index], lastTime[index], keypad?.takeIf { it.target.setId == set.id }, actions)
+            }
         }
         TextButton(onClick = onAddSet, modifier = Modifier.fillMaxWidth()) {
             Icon(Icons.Filled.Add, contentDescription = null)
@@ -100,7 +102,7 @@ fun SetTable(
 }
 
 @Composable
-private fun SetRow(set: WorkoutSet, label: SetLabel, lastTime: WorkoutSet?, actions: SetActions) {
+private fun SetRow(set: WorkoutSet, label: SetLabel, lastTime: WorkoutSet?, keypad: KeypadState?, actions: SetActions) {
     val completed = set.completedAt != null
     val labelText = label.text()
     val rowColor =
@@ -110,32 +112,19 @@ private fun SetRow(set: WorkoutSet, label: SetLabel, lastTime: WorkoutSet?, acti
         labelCell = { SetLabelButton(set, labelText, actions) },
         lastCell = { LastTimeText(lastTime) },
         weightCell = {
-            SetNumberField(
-                key = set.id,
-                initial = formatSetNumber(set.weightKg),
-                keyboardType = KeyboardType.Decimal,
-                description = stringResource(R.string.set_weight_description, labelText),
-                parse = { text -> parseWeight(text).ifValid { actions.onWeightChange(set.id, it) } },
+            SetValueField(
+                set,
+                SetField.WEIGHT,
+                keypad,
+                stringResource(R.string.set_weight_description, labelText),
+                actions
             )
         },
         repsCell = {
-            SetNumberField(
-                key = set.id,
-                initial = if (set.reps == 0) "" else set.reps.toString(),
-                keyboardType = KeyboardType.Number,
-                description = stringResource(R.string.set_reps_description, labelText),
-                parse = { text -> parseReps(text).ifValid { actions.onRepsChange(set.id, it) } },
-            )
+            SetValueField(set, SetField.REPS, keypad, stringResource(R.string.set_reps_description, labelText), actions)
         },
         rpeCell = {
-            SetNumberField(
-                key = set.id,
-                initial = formatSetNumber(set.rpe),
-                keyboardType = KeyboardType.Decimal,
-                description = stringResource(R.string.set_rpe_description, labelText),
-                parse = { text -> parseRpe(text).ifValid { actions.onRpeChange(set.id, it) } },
-                imeAction = ImeAction.Done,
-            )
+            SetValueField(set, SetField.RPE, keypad, stringResource(R.string.set_rpe_description, labelText), actions)
         },
         doneCell = {
             val description = stringResource(R.string.set_complete_description, labelText)
@@ -186,53 +175,67 @@ private fun SetLabelButton(set: WorkoutSet, labelText: String, actions: SetActio
 }
 
 /**
- * A number field that keeps what you type and saves it whenever [parse] accepts it, so a half-typed
- * "62." is never written back over. Text that does not parse is flagged and not saved.
+ * A set's number, edited with the keypad rather than the system keyboard. While the keypad is on it
+ * the field shows the keypad's text, outlined, with the whole value highlighted until typing starts
+ * over it; text that isn't a value yet is flagged.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun SetNumberField(
-    key: String,
-    initial: String,
-    keyboardType: KeyboardType,
+private fun SetValueField(
+    set: WorkoutSet,
+    field: SetField,
+    keypad: KeypadState?,
     description: String,
-    parse: (String) -> Boolean,
-    imeAction: ImeAction = ImeAction.Next,
+    actions: SetActions,
 ) {
-    var text by rememberSaveable(key) { mutableStateOf(initial) }
-    var valid by remember(key) { mutableStateOf(true) }
-    val interactionSource = remember { MutableInteractionSource() }
-    // An outlined field with tighter padding than OutlinedTextField's 16dp, so five columns fit a phone.
-    BasicTextField(
-        value = text,
-        onValueChange = {
-            text = it
-            valid = parse(it)
-        },
+    val editing = keypad?.takeIf { it.field == field }
+    val text = editing?.text ?: set.fieldText(field)
+    val colors = MaterialTheme.colorScheme
+    val borderColor =
+        when {
+            editing != null && !editing.isValid -> colors.error
+            editing != null -> colors.primary
+            else -> colors.outline
+        }
+    val focusManager = LocalFocusManager.current
+    val bringIntoView = remember { BringIntoViewRequester() }
+    LaunchedEffect(editing != null) {
+        // Wait a frame so the list has shrunk for the keypad before scrolling this row clear of it.
+        if (editing != null) {
+            withFrameNanos {}
+            bringIntoView.bringIntoView()
+        }
+    }
+    Box(
+        contentAlignment = Alignment.Center,
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = FIELD_MIN_HEIGHT)
-            .semantics { contentDescription = description },
-        textStyle = MaterialTheme.typography.bodyLarge.copy(
+            .bringIntoViewRequester(bringIntoView)
+            .clip(FIELD_SHAPE)
+            .border(if (editing != null) 2.dp else 1.dp, borderColor, FIELD_SHAPE)
+            .clickable {
+                // A note may have the system keyboard up; the keypad takes over from it.
+                focusManager.clearFocus()
+                actions.onFieldClick(set.id, field)
+            }.semantics { contentDescription = description },
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyLarge,
+            color = colors.onSurface,
             textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurface,
-        ),
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = imeAction),
-        singleLine = true,
-        interactionSource = interactionSource,
-        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-        decorationBox = { innerTextField ->
-            OutlinedTextFieldDefaults.DecorationBox(
-                value = text,
-                innerTextField = innerTextField,
-                enabled = true,
-                singleLine = true,
-                visualTransformation = VisualTransformation.None,
-                interactionSource = interactionSource,
-                isError = !valid,
-                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 12.dp),
-            )
-        },
-    )
+            maxLines = 1,
+            modifier = Modifier
+                .then(
+                    if (editing?.replaceOnType == true && text.isNotEmpty()) {
+                        Modifier.background(colors.primary.copy(alpha = SELECTION_ALPHA), RoundedCornerShape(2.dp))
+                    } else {
+                        Modifier
+                    },
+                ).padding(horizontal = 2.dp),
+        )
+    }
 }
 
 @Composable
@@ -307,16 +310,9 @@ private val SetType.shortRes: Int
             SetType.FAILURE -> R.string.set_short_failure
         }
 
-/** Runs [save] with the value if the input is valid, and says whether it was. */
-private inline fun <T> FieldInput<T>.ifValid(save: (T) -> Unit): Boolean = when (this) {
-    is FieldInput.Valid -> {
-        save(value)
-        true
-    }
-    FieldInput.Invalid -> false
-}
-
 private val FIELD_MIN_HEIGHT = 48.dp
+private val FIELD_SHAPE = RoundedCornerShape(4.dp)
+private const val SELECTION_ALPHA = 0.3f
 private val LABEL_WIDTH = 44.dp
 private val DONE_WIDTH = 44.dp
 private const val LAST_COLUMN = 1.1f
