@@ -11,6 +11,25 @@
     <string name="workout_idle_title">Ready to train?</string>
     <string name="workout_idle_body">Start an empty workout and add exercises as you go.</string>
     <string name="workout_start_empty">Start empty workout</string>
+    <string name="workout_idle_routines">Routines</string>
+    <string name="workout_idle_no_routines">No routines yet. Make one to start a planned session in one tap.</string>
+    <string name="workout_start_routine">Start</string>
+    <string name="workout_start_routine_description">Start %1$s</string>
+    <string name="workout_new_routine">New routine</string>
+    <string name="workout_routine_empty">No exercises</string>
+    <string name="workout_exercise_targets">%1$d–%2$d reps</string>
+    <string name="workout_exercise_rest">Rest %1$s</string>
+    <string name="workout_rest_time">Rest time</string>
+    <string name="workout_rest_dialog_title">Rest after each set of %1$s</string>
+    <string name="workout_rest_dialog_save">Save</string>
+    <string name="workout_rest_dialog_cancel">Cancel</string>
+    <string name="workout_save_as_routine">Save as routine</string>
+    <string name="workout_save_routine_title">Save as routine</string>
+    <string name="workout_save_routine_body">Starts with these exercises, and set and rep targets from what you logged.</string>
+    <string name="workout_save_routine_name">Routine name</string>
+    <string name="workout_save_routine_save">Save</string>
+    <string name="workout_save_routine_cancel">Cancel</string>
+    <string name="workout_save_routine_error_blank">Give the routine a name.</string>
     <string name="workout_active_title">Workout in progress</string>
     <string name="workout_no_exercises">No exercises yet. Add the first one to start logging.</string>
     <string name="workout_add_exercises">Add exercises</string>
@@ -44,6 +63,46 @@
     </plurals>
     <string name="workout_remove_confirm">Remove</string>
     <string name="workout_remove_keep">Keep</string>
+
+    <!-- Rest timer -->
+    <string name="rest_label">Rest</string>
+    <string name="rest_off">Off</string>
+    <string name="rest_subtract">−15 s</string>
+    <string name="rest_add">+15 s</string>
+    <string name="rest_skip">Skip</string>
+    <string name="rest_subtract_description">Rest 15 seconds less</string>
+    <string name="rest_add_description">Rest 15 seconds more</string>
+    <string name="rest_notification_title">Resting</string>
+    <string name="rest_finished_title">Rest over</string>
+    <string name="rest_finished_body">Time for your next set of %1$s.</string>
+    <string name="rest_channel_countdown">Rest timer</string>
+    <string name="rest_channel_finished">Rest over alerts</string>
+
+    <!-- Routine editor -->
+    <string name="routine_title_new">New routine</string>
+    <string name="routine_title_edit">Edit routine</string>
+    <string name="routine_back">Back</string>
+    <string name="routine_save">Save</string>
+    <string name="routine_delete">Delete routine</string>
+    <string name="routine_name">Name</string>
+    <string name="routine_name_placeholder">Push, Pull, Legs…</string>
+    <string name="routine_notes">Notes</string>
+    <string name="routine_error_blank">Give the routine a name.</string>
+    <string name="routine_no_exercises">No exercises yet. Add the ones this routine trains.</string>
+    <string name="routine_add_exercises">Add exercises</string>
+    <string name="routine_sets">Sets</string>
+    <string name="routine_rep_min">Reps from</string>
+    <string name="routine_rep_max">Reps to</string>
+    <string name="routine_decrease">Decrease %1$s</string>
+    <string name="routine_increase">Increase %1$s</string>
+    <string name="routine_discard_title">Discard changes?</string>
+    <string name="routine_discard_body">Your changes to this routine will be lost.</string>
+    <string name="routine_discard_confirm">Discard</string>
+    <string name="routine_discard_keep">Keep editing</string>
+    <string name="routine_delete_title">Delete %1$s?</string>
+    <string name="routine_delete_body">Workouts you logged from it are kept.</string>
+    <string name="routine_delete_confirm">Delete</string>
+    <string name="routine_delete_keep">Keep</string>
 
     <!-- Sets -->
     <string name="set_header_set">Set</string>

@@ -7,6 +7,9 @@ import io.github.prithvimk.gymtracker.data.repository.RoutineRepository
 import io.github.prithvimk.gymtracker.data.repository.WorkoutRepository
 import io.github.prithvimk.gymtracker.data.seed.ExerciseSeeder
 import io.github.prithvimk.gymtracker.data.seed.SharedPreferencesSeedVersionStore
+import io.github.prithvimk.gymtracker.timer.RestTimer
+import io.github.prithvimk.gymtracker.timer.RestTimerService
+import io.github.prithvimk.gymtracker.timer.SharedPreferencesRestTimerStore
 
 /** Manual dependency container. ViewModels reach repositories through here without a DI framework. */
 interface AppContainer {
@@ -14,6 +17,7 @@ interface AppContainer {
     val routineRepository: RoutineRepository
     val workoutRepository: WorkoutRepository
     val exerciseSeeder: ExerciseSeeder
+    val restTimer: RestTimer
 }
 
 class DefaultAppContainer(context: Context) : AppContainer {
@@ -23,19 +27,26 @@ class DefaultAppContainer(context: Context) : AppContainer {
 
     override val exerciseRepository: ExerciseRepository by lazy { ExerciseRepository(database.exerciseDao()) }
 
-    override val routineRepository: RoutineRepository by lazy { RoutineRepository(database.routineDao()) }
+    override val routineRepository: RoutineRepository by lazy {
+        RoutineRepository(database.routineDao(), database.workoutDao())
+    }
 
     override val workoutRepository: WorkoutRepository by lazy {
         WorkoutRepository(database.workoutDao(), database.personalRecordDao())
     }
 
+    private val prefs by lazy { appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE) }
+
     override val exerciseSeeder: ExerciseSeeder by lazy {
-        val prefs = appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         ExerciseSeeder(
             exerciseDao = database.exerciseDao(),
             versionStore = SharedPreferencesSeedVersionStore(prefs),
             loadSeedJson = ::readSeedAsset,
         )
+    }
+
+    override val restTimer: RestTimer by lazy {
+        RestTimer(SharedPreferencesRestTimerStore(prefs), onRun = { RestTimerService.start(appContext) })
     }
 
     private fun readSeedAsset(): String {

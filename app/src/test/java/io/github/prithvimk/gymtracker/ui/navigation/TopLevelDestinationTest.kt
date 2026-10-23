@@ -19,8 +19,17 @@ class TopLevelDestinationTest {
     }
 
     @Test
+    fun `screens under a tab resolve to that tab`() {
+        assertEquals(
+            TopLevelDestination.WORKOUT,
+            TopLevelDestination.fromRoute("workout/routine?routineId={routineId}")
+        )
+    }
+
+    @Test
     fun `fromRoute returns null for unknown routes`() {
         assertNull(TopLevelDestination.fromRoute("nope"))
+        assertNull(TopLevelDestination.fromRoute("workouts"))
         assertNull(TopLevelDestination.fromRoute(null))
     }
 

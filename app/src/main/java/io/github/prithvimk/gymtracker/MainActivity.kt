@@ -17,4 +17,10 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    override fun onStart() {
+        super.onStart()
+        // A rest that outlived the app (killed while resting) gets its countdown notification back.
+        (application as GymTrackerApp).container.restTimer.resumeIfRunning()
+    }
 }

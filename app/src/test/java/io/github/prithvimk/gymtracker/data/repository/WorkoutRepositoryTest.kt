@@ -8,6 +8,11 @@ import io.github.prithvimk.gymtracker.data.db.GymDatabase
 import io.github.prithvimk.gymtracker.data.db.withDefaults
 import io.github.prithvimk.gymtracker.data.exercise
 import io.github.prithvimk.gymtracker.data.inMemoryDatabase
+import io.github.prithvimk.gymtracker.data.routine
+import io.github.prithvimk.gymtracker.data.routineExercise
+import io.github.prithvimk.gymtracker.data.workout
+import io.github.prithvimk.gymtracker.data.workoutExercise
+import io.github.prithvimk.gymtracker.data.workoutSet
 import io.github.prithvimk.gymtracker.domain.WorkoutSummary
 import io.github.prithvimk.gymtracker.domain.model.SetType
 import kotlinx.coroutines.flow.first
@@ -16,6 +21,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -430,6 +436,68 @@ class WorkoutRepositoryTest {
 
     private suspend fun exerciseOrder(workoutId: String): List<String> =
         repository.observeExerciseEntries(workoutId).first().map { it.exerciseId }
+
+    @Test
+    fun `startWorkoutFromRoutine lays out the routine with target sets prefilled from last time`() = runTest {
+        val dao = db.workoutDao()
+        db.routineDao().upsert(routine("push", name = "Push"))
+        db.routineDao().upsertExercise(routineExercise("r1", "push", "bench", position = 0).copy(targetSets = 3))
+        db.routineDao().upsertExercise(
+            routineExercise(
+                "r2",
+                "push",
+                "ohp",
+                position = 1
+            ).copy(targetSets = 2, repMin = 6, repMax = 8, restSeconds = 90),
+        )
+        dao.upsert(workout("old", startedAt = 0L, endedAt = 500L))
+        dao.upsertExercise(workoutExercise("old-bench", "old", "bench"))
+        dao.upsertSet(workoutSet("w", "old-bench", position = 0, weightKg = 40.0, reps = 10, type = SetType.WARMUP))
+        dao.upsertSet(workoutSet("a", "old-bench", position = 1, weightKg = 80.0, reps = 8))
+        dao.upsertSet(workoutSet("b", "old-bench", position = 2, weightKg = 82.5, reps = 6))
+
+        val workout = repository.startWorkoutFromRoutine("push")
+
+        assertEquals("push", workout.routineId)
+        assertEquals("Push", repository.observeRoutineName(workout.id).first())
+        val entries = repository.observeExerciseEntries(workout.id).first()
+        assertEquals(listOf("Bench Press", "Overhead Press"), entries.map { it.name })
+        assertEquals(listOf(8 to 12, 6 to 8), entries.map { it.repMin to it.repMax })
+        assertEquals(listOf(120, 90), entries.map { it.restSeconds })
+        val sets = repository.observeSetsForWorkout(workout.id).first().groupBy { it.workoutExerciseId }
+        // Working sets follow last time's working sets, and the third copies the one before it.
+        assertEquals(
+            listOf(80.0 to 8, 82.5 to 6, 82.5 to 6),
+            sets.getValue(entries[0].id).map { it.weightKg to it.reps },
+        )
+        assertEquals(listOf(0.0 to 0, 0.0 to 0), sets.getValue(entries[1].id).map { it.weightKg to it.reps })
+        assertTrue(sets.values.flatten().all { it.type == SetType.WORKING && it.completedAt == null })
+    }
+
+    @Test
+    fun `startWorkoutFromRoutine returns the active workout if there is one`() = runTest {
+        db.routineDao().upsert(routine("push"))
+        db.routineDao().upsertExercise(routineExercise("r1", "push", "bench"))
+        val active = repository.startEmptyWorkout()
+
+        val started = repository.startWorkoutFromRoutine("push")
+
+        assertEquals(active, started)
+        assertEquals(1, repository.observeWorkouts().first().size)
+        assertTrue(repository.observeExerciseEntries(active.id).first().isEmpty())
+    }
+
+    @Test
+    fun `updateExerciseRest sets the rest for that workout exercise`() = runTest {
+        val workout = repository.startEmptyWorkout()
+        repository.addExercises(workout.id, listOf("bench"))
+        val entry = repository.observeExerciseEntries(workout.id).first().single()
+        assertNull(entry.restSeconds)
+
+        repository.updateExerciseRest(entry.id, 45)
+
+        assertEquals(45, repository.observeExerciseEntries(workout.id).first().single().restSeconds)
+    }
 
     private fun repositoryFor(database: GymDatabase) = WorkoutRepository(
         database.workoutDao(),

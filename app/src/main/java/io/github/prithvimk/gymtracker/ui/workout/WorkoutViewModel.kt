@@ -11,9 +11,17 @@ import io.github.prithvimk.gymtracker.data.db.entity.Exercise
 import io.github.prithvimk.gymtracker.data.db.entity.Workout
 import io.github.prithvimk.gymtracker.data.db.entity.WorkoutSet
 import io.github.prithvimk.gymtracker.data.repository.ExerciseRepository
+import io.github.prithvimk.gymtracker.data.repository.RoutineRepository
+import io.github.prithvimk.gymtracker.data.repository.RoutineSaveResult
+import io.github.prithvimk.gymtracker.data.repository.RoutineSummary
 import io.github.prithvimk.gymtracker.data.repository.WorkoutRepository
+import io.github.prithvimk.gymtracker.domain.DEFAULT_REST_SECONDS
+import io.github.prithvimk.gymtracker.domain.MAX_REST_SECONDS
+import io.github.prithvimk.gymtracker.domain.REST_STEP_SECONDS
 import io.github.prithvimk.gymtracker.domain.WorkoutSummary
 import io.github.prithvimk.gymtracker.domain.model.SetType
+import io.github.prithvimk.gymtracker.timer.RestTimer
+import io.github.prithvimk.gymtracker.timer.RestTimerState
 import io.github.prithvimk.gymtracker.ui.exercises.ExerciseFilter
 import io.github.prithvimk.gymtracker.ui.exercises.filteredBy
 import java.text.NumberFormat
@@ -49,8 +57,20 @@ sealed interface WorkoutUiState {
         val exercises: List<WorkoutExerciseEntry> = emptyList(),
         val sets: Map<String, List<WorkoutSet>> = emptyMap(),
         val previousSets: Map<String, List<WorkoutSet>> = emptyMap(),
+        val routineName: String? = null,
     ) : WorkoutUiState
 }
+
+/** A finished workout's summary, kept until it is dismissed. [savingAsRoutine] is the routine name being typed. */
+data class FinishedWorkout(
+    val workoutId: String,
+    val summary: WorkoutSummary,
+    val savingAsRoutine: String? = null,
+    val routineNameError: Boolean = false,
+)
+
+/** The rest time being picked for one exercise of the workout. */
+data class RestEdit(val workoutExerciseId: String, val exerciseName: String, val seconds: Int)
 
 /** An exercise waiting on confirmation before it and its [setCount] sets are removed. */
 data class PendingRemoval(val workoutExerciseId: String, val name: String, val setCount: Int)
@@ -63,8 +83,12 @@ data class ExercisePickerState(
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class WorkoutViewModel(private val workoutRepository: WorkoutRepository, exerciseRepository: ExerciseRepository,) :
-    ViewModel() {
+class WorkoutViewModel(
+    private val workoutRepository: WorkoutRepository,
+    exerciseRepository: ExerciseRepository,
+    private val routineRepository: RoutineRepository,
+    private val restTimer: RestTimer,
+) : ViewModel() {
     // The active workout comes straight from the database, so it is back after the app is killed.
     private val activeWorkout = workoutRepository.observeActiveWorkout()
 
@@ -89,8 +113,17 @@ class WorkoutViewModel(private val workoutRepository: WorkoutRepository, exercis
                         exercises,
                         workoutRepository.observeSetsForWorkout(workoutId),
                         previousSets,
-                    ) { workout, entries, sets, previous ->
-                        WorkoutUiState.Active(workout, entries, sets.groupBy { it.workoutExerciseId }, previous)
+                        workoutRepository.observeRoutineName(workoutId),
+                    ) { workout, entries, sets, previous, routineName ->
+                        WorkoutUiState.Active(
+                            workout,
+                            entries,
+                            sets.groupBy {
+                                it.workoutExerciseId
+                            },
+                            previous,
+                            routineName
+                        )
                     }
                 }
             }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), WorkoutUiState.Loading)
@@ -99,8 +132,18 @@ class WorkoutViewModel(private val workoutRepository: WorkoutRepository, exercis
     val confirmingDiscard: StateFlow<Boolean> = _confirmingDiscard.asStateFlow()
 
     // Held here because the finished workout is no longer active, so state has already moved on to Idle.
-    private val _summary = MutableStateFlow<WorkoutSummary?>(null)
-    val summary: StateFlow<WorkoutSummary?> = _summary.asStateFlow()
+    private val _finished = MutableStateFlow<FinishedWorkout?>(null)
+    val finished: StateFlow<FinishedWorkout?> = _finished.asStateFlow()
+
+    val routines: StateFlow<List<RoutineSummary>> =
+        routineRepository
+            .observeRoutineSummaries()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), emptyList())
+
+    val rest: StateFlow<RestTimerState?> = restTimer.state
+
+    private val _restEdit = MutableStateFlow<RestEdit?>(null)
+    val restEdit: StateFlow<RestEdit?> = _restEdit.asStateFlow()
 
     // The keypad's edit, or null while it is closed.
     private val _keypad = MutableStateFlow<KeypadState?>(null)
@@ -121,17 +164,47 @@ class WorkoutViewModel(private val workoutRepository: WorkoutRepository, exercis
         viewModelScope.launch { workoutRepository.startEmptyWorkout() }
     }
 
+    fun onStartRoutineClick(routineId: String) {
+        viewModelScope.launch { workoutRepository.startWorkoutFromRoutine(routineId) }
+    }
+
     fun onFinishClick() {
         val active = state.value as? WorkoutUiState.Active ?: return
         _keypad.value = null
+        restTimer.skip()
         viewModelScope.launch {
             workoutRepository.finishWorkout(active.workout.id)
-            _summary.value = workoutRepository.summarize(active.workout.id)
+            _finished.value =
+                workoutRepository.summarize(active.workout.id)?.let { FinishedWorkout(active.workout.id, it) }
         }
     }
 
     fun onSummaryDismiss() {
-        _summary.value = null
+        _finished.value = null
+    }
+
+    fun onSaveAsRoutineClick() {
+        _finished.update { it?.copy(savingAsRoutine = "", routineNameError = false) }
+    }
+
+    fun onRoutineNameChange(name: String) {
+        _finished.update { it?.copy(savingAsRoutine = name, routineNameError = false) }
+    }
+
+    fun onSaveRoutineDismiss() {
+        _finished.update { it?.copy(savingAsRoutine = null, routineNameError = false) }
+    }
+
+    /** Saves the finished workout as a routine and closes the summary; it then shows in the routine list. */
+    fun onSaveRoutineConfirm() {
+        val finished = _finished.value ?: return
+        val name = finished.savingAsRoutine ?: return
+        viewModelScope.launch {
+            when (routineRepository.createFromWorkout(finished.workoutId, name)) {
+                is RoutineSaveResult.Saved -> _finished.value = null
+                RoutineSaveResult.BlankName -> _finished.update { it?.copy(routineNameError = true) }
+            }
+        }
     }
 
     fun onDiscardClick() {
@@ -145,6 +218,7 @@ class WorkoutViewModel(private val workoutRepository: WorkoutRepository, exercis
     fun onDiscardConfirm() {
         _confirmingDiscard.value = false
         _keypad.value = null
+        restTimer.skip()
         val active = state.value as? WorkoutUiState.Active ?: return
         viewModelScope.launch { workoutRepository.deleteWorkout(active.workout.id) }
     }
@@ -232,8 +306,49 @@ class WorkoutViewModel(private val workoutRepository: WorkoutRepository, exercis
         viewModelScope.launch { workoutRepository.updateSetType(setId, type) }
     }
 
+    /** Ticking a set off starts the rest timer with that exercise's rest time. */
     fun onSetCompletedChange(setId: String, completed: Boolean) {
         viewModelScope.launch { workoutRepository.setSetCompleted(setId, completed) }
+        if (!completed) return
+        val active = state.value as? WorkoutUiState.Active ?: return
+        val set = active.sets.values.flatten().firstOrNull { it.id == setId } ?: return
+        val entry = active.exercises.firstOrNull { it.id == set.workoutExerciseId } ?: return
+        restTimer.start(entry.restSeconds ?: DEFAULT_REST_SECONDS, entry.name)
+    }
+
+    fun onRestAdjust(seconds: Int) {
+        restTimer.adjust(seconds)
+    }
+
+    fun onRestSkip() {
+        restTimer.skip()
+    }
+
+    fun onRestEditClick(workoutExerciseId: String) {
+        val active = state.value as? WorkoutUiState.Active ?: return
+        val entry = active.exercises.firstOrNull { it.id == workoutExerciseId } ?: return
+        _restEdit.value = RestEdit(entry.id, entry.name, entry.restSeconds ?: DEFAULT_REST_SECONDS)
+    }
+
+    fun onRestEditStep(up: Boolean) {
+        _restEdit.update { edit ->
+            edit?.copy(
+                seconds = (edit.seconds + if (up) REST_STEP_SECONDS else -REST_STEP_SECONDS).coerceIn(
+                    0,
+                    MAX_REST_SECONDS
+                )
+            )
+        }
+    }
+
+    fun onRestEditDismiss() {
+        _restEdit.value = null
+    }
+
+    fun onRestEditSave() {
+        val edit = _restEdit.value ?: return
+        _restEdit.value = null
+        viewModelScope.launch { workoutRepository.updateExerciseRest(edit.workoutExerciseId, edit.seconds) }
     }
 
     fun onDeleteSet(setId: String) {
@@ -295,7 +410,12 @@ class WorkoutViewModel(private val workoutRepository: WorkoutRepository, exercis
             viewModelFactory {
                 initializer {
                     val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as GymTrackerApp
-                    WorkoutViewModel(app.container.workoutRepository, app.container.exerciseRepository)
+                    WorkoutViewModel(
+                        app.container.workoutRepository,
+                        app.container.exerciseRepository,
+                        app.container.routineRepository,
+                        app.container.restTimer,
+                    )
                 }
             }
     }

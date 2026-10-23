@@ -5,6 +5,10 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
+/**
+ * An exercise in a workout. A workout started from a routine copies the routine's rep range and rest
+ * time onto it; otherwise they are null and the rest timer uses the default.
+ */
 @Entity(
     tableName = "workout_exercises",
     foreignKeys = [
@@ -29,6 +33,9 @@ data class WorkoutExercise(
     val exerciseId: String,
     val position: Int,
     val notes: String,
+    val repMin: Int?,
+    val repMax: Int?,
+    val restSeconds: Int?,
     val createdAt: Long,
     val updatedAt: Long,
 )

@@ -78,12 +78,12 @@ Done when: you log two real sessions at the gym and the second one shows the fir
 
 Goal: start a planned session in one tap and rest on time.
 
-- [ ] Create and edit routines: ordered exercises with target sets, rep range and rest time
-- [ ] Start workout from a routine; target sets are created with "last time" values filled in
-- [ ] "Save as routine" from a finished workout
-- [ ] Rest timer that starts when a set is completed; per-exercise default, +/-15 s controls
-- [ ] Foreground service with a countdown notification and vibration at zero, working with the screen off
-- [ ] Notification permission request on Android 13+
+- [x] Create and edit routines: ordered exercises with target sets, rep range and rest time (schema v2: workout exercises keep the routine's rep range and rest)
+- [x] Start workout from a routine; target sets are created with "last time" values filled in
+- [x] "Save as routine" from a finished workout
+- [x] Rest timer that starts when a set is completed; per-exercise default, +/-15 s controls
+- [x] Foreground service with a countdown notification and vibration at zero, working with the screen off (a `specialUse` service holding a wake lock until the rest ends)
+- [x] Notification permission request on Android 13+
 
 Done when: a full Push/Pull/Legs week runs from routines with the phone locked between sets.
 
