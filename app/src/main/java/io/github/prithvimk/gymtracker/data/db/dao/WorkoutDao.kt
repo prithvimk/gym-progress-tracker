@@ -190,6 +190,24 @@ interface WorkoutDao {
     @Query("SELECT * FROM workout_exercises WHERE id = :id")
     suspend fun getExercise(id: String): WorkoutExercise?
 
+    /** The library exercise the set belongs to, or null if the set does not exist. */
+    @Query(
+        "SELECT we.exerciseId FROM workout_sets s JOIN workout_exercises we ON we.id = s.workoutExerciseId WHERE s.id = :setId"
+    )
+    suspend fun getExerciseIdForSet(setId: String): String?
+
+    /** Like [getExerciseIdForSet], but null unless the set is marked complete, since only those can hold records. */
+    @Query(
+        """
+        SELECT we.exerciseId FROM workout_sets s JOIN workout_exercises we ON we.id = s.workoutExerciseId
+        WHERE s.id = :setId AND s.completedAt IS NOT NULL
+        """
+    )
+    suspend fun getExerciseIdForCompletedSet(setId: String): String?
+
+    @Query("SELECT DISTINCT exerciseId FROM workout_exercises WHERE workoutId = :workoutId")
+    suspend fun getExerciseIdsForWorkout(workoutId: String): List<String>
+
     @Query("SELECT * FROM workout_sets WHERE workoutExerciseId = :workoutExerciseId ORDER BY position")
     suspend fun getSets(workoutExerciseId: String): List<WorkoutSet>
 

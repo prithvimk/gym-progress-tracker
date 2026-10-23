@@ -93,10 +93,12 @@ class WorkoutRepository(
 
     suspend fun updateSetWeight(setId: String, weightKg: Double) {
         workoutDao.updateSetWeight(setId, weightKg, updatedAt = now())
+        recomputeRecordsIfCompleted(setId)
     }
 
     suspend fun updateSetReps(setId: String, reps: Int) {
         workoutDao.updateSetReps(setId, reps, updatedAt = now())
+        recomputeRecordsIfCompleted(setId)
     }
 
     suspend fun updateSetRpe(setId: String, rpe: Double?) {
@@ -105,12 +107,14 @@ class WorkoutRepository(
 
     suspend fun updateSetType(setId: String, type: SetType) {
         workoutDao.updateSetType(setId, type, updatedAt = now())
+        recomputeRecordsIfCompleted(setId)
     }
 
     /** Marks the set complete now, or clears the mark. */
     suspend fun setSetCompleted(setId: String, completed: Boolean) {
         val time = now()
         workoutDao.updateSetCompletedAt(setId, completedAt = if (completed) time else null, updatedAt = time)
+        recomputeRecordsForSet(setId)
     }
 
     fun observeWorkouts(): Flow<List<Workout>> = workoutDao.observeAll()
@@ -124,27 +128,61 @@ class WorkoutRepository(
     fun observePersonalRecords(exerciseId: String): Flow<List<PersonalRecord>> =
         personalRecordDao.observeForExercise(exerciseId)
 
+    /** Saves the workout. Its start time orders sessions, so its exercises' records are worked out again. */
     suspend fun saveWorkout(workout: Workout) {
         workoutDao.upsert(workout.copy(updatedAt = now()))
+        recomputeRecords(workoutDao.getExerciseIdsForWorkout(workout.id))
     }
 
     suspend fun saveWorkoutExercise(workoutExercise: WorkoutExercise) {
+        val previousExerciseId = workoutDao.getExercise(workoutExercise.id)?.exerciseId
         workoutDao.upsertExercise(workoutExercise.copy(updatedAt = now()))
+        recomputeRecords(listOfNotNull(previousExerciseId, workoutExercise.exerciseId).distinct())
     }
 
     suspend fun saveSet(set: WorkoutSet) {
+        val previousExerciseId = workoutDao.getExerciseIdForSet(set.id)
         workoutDao.upsertSet(set.copy(updatedAt = now()))
+        recomputeRecords(listOfNotNull(previousExerciseId, workoutDao.getExerciseIdForSet(set.id)).distinct())
     }
 
     suspend fun deleteWorkout(id: String) {
+        val exerciseIds = workoutDao.getExerciseIdsForWorkout(id)
         workoutDao.deleteById(id)
+        recomputeRecords(exerciseIds)
     }
 
     suspend fun deleteWorkoutExercise(id: String) {
+        val exerciseId = workoutDao.getExercise(id)?.exerciseId
         workoutDao.deleteExerciseById(id)
+        recomputeRecords(listOfNotNull(exerciseId))
     }
 
     suspend fun deleteSet(id: String) {
+        val exerciseId = workoutDao.getExerciseIdForSet(id)
         workoutDao.deleteSetById(id)
+        recomputeRecords(listOfNotNull(exerciseId))
+    }
+
+    /**
+     * Works out records for every exercise with completed sets if none are stored yet, for sessions
+     * logged before PR detection existed. Cheap when there is nothing to do.
+     */
+    suspend fun backfillPersonalRecordsIfMissing() {
+        if (personalRecordDao.count() > 0) return
+        recomputeRecords(personalRecordDao.getExerciseIdsWithCompletedSets())
+    }
+
+    private suspend fun recomputeRecordsForSet(setId: String) {
+        recomputeRecords(listOfNotNull(workoutDao.getExerciseIdForSet(setId)))
+    }
+
+    /** Edits to a set not marked complete cannot change any record, and the keypad saves on every key. */
+    private suspend fun recomputeRecordsIfCompleted(setId: String) {
+        recomputeRecords(listOfNotNull(workoutDao.getExerciseIdForCompletedSet(setId)))
+    }
+
+    private suspend fun recomputeRecords(exerciseIds: List<String>) {
+        exerciseIds.forEach { personalRecordDao.recompute(it, now = now(), newId = newId) }
     }
 }

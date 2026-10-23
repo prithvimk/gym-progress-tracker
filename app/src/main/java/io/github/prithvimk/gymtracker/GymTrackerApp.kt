@@ -27,6 +27,8 @@ class GymTrackerApp :
         applicationScope.launch {
             runCatching { container.exerciseSeeder.seedIfNeeded() }
                 .onFailure { Log.e(TAG, "Seeding the exercise library failed", it) }
+            runCatching { container.workoutRepository.backfillPersonalRecordsIfMissing() }
+                .onFailure { Log.e(TAG, "Working out personal records failed", it) }
         }
     }
 
