@@ -593,6 +593,26 @@ class WorkoutRepositoryTest {
         assertEquals(first.toSet(), recordsFor("bench").toSet())
     }
 
+    @Test
+    fun `observeWorkoutRecords lists a workout's records with names and set numbers, in logger order`() = runTest {
+        logPastBench("w1", startedAt = 0L, weightKg = 100.0, reps = 5)
+        db.workoutDao().upsert(workout("today", startedAt = 100L))
+        db.workoutDao().upsertExercise(workoutExercise("today-ohp", "today", "ohp", position = 0))
+        db.workoutDao().upsertExercise(workoutExercise("today-bench", "today", "bench", position = 1))
+        db.workoutDao().upsertSet(workoutSet("press", "today-ohp", weightKg = 50.0, reps = 5))
+        db.workoutDao().upsertSet(workoutSet("top", "today-bench", weightKg = 100.0, reps = 6))
+        repository.setSetCompleted("press", completed = true)
+        repository.setSetCompleted("top", completed = true)
+
+        val records = repository.observeWorkoutRecords("today").first()
+
+        assertEquals(listOf("press", "top"), records.map { it.setId }.distinct())
+        val benchRep = records.single { it.type == PrType.REPS_AT_WEIGHT }
+        assertEquals("Bench Press", benchRep.exerciseName)
+        assertEquals(100.0 to 6, benchRep.weightKg to benchRep.reps)
+        assertTrue(records.none { it.setId == "w1-set" })
+    }
+
     private suspend fun logPastBench(workoutId: String, startedAt: Long, weightKg: Double, reps: Int) {
         db.workoutDao().upsert(workout(workoutId, startedAt = startedAt, endedAt = startedAt + 5))
         db.workoutDao().upsertExercise(workoutExercise("$workoutId-bench", workoutId, "bench"))
