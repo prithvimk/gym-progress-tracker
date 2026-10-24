@@ -9,7 +9,19 @@ import io.github.prithvimk.gymtracker.data.db.entity.PersonalRecord
 import io.github.prithvimk.gymtracker.data.db.entity.WorkoutSet
 import io.github.prithvimk.gymtracker.domain.ExerciseSession
 import io.github.prithvimk.gymtracker.domain.detectPersonalRecords
+import io.github.prithvimk.gymtracker.domain.model.PrType
 import kotlinx.coroutines.flow.Flow
+
+/** A record set in a workout, with the exercise's name and the set's numbers, for showing it. */
+data class WorkoutRecord(
+    val type: PrType,
+    val value: Double,
+    val setId: String,
+    val exerciseId: String,
+    val exerciseName: String,
+    val weightKg: Double,
+    val reps: Int,
+)
 
 /** A completed set of an exercise, with the workout it belongs to. */
 data class CompletedSetRow(val workoutId: String, val workoutStartedAt: Long, @Embedded val set: WorkoutSet)
@@ -18,6 +30,20 @@ data class CompletedSetRow(val workoutId: String, val workoutStartedAt: Long, @E
 interface PersonalRecordDao {
     @Query("SELECT * FROM personal_records WHERE exerciseId = :exerciseId ORDER BY achievedAt DESC")
     fun observeForExercise(exerciseId: String): Flow<List<PersonalRecord>>
+
+    /** Records set in the workout, in exercise order and then set order. */
+    @Query(
+        """
+        SELECT pr.type, pr.value, pr.setId, pr.exerciseId, e.name AS exerciseName, s.weightKg, s.reps
+        FROM personal_records pr
+        JOIN workout_sets s ON s.id = pr.setId
+        JOIN workout_exercises we ON we.id = s.workoutExerciseId
+        JOIN exercises e ON e.id = pr.exerciseId
+        WHERE we.workoutId = :workoutId
+        ORDER BY we.position, s.position
+        """
+    )
+    fun observeForWorkout(workoutId: String): Flow<List<WorkoutRecord>>
 
     @Query("SELECT * FROM personal_records WHERE exerciseId = :exerciseId")
     suspend fun getForExercise(exerciseId: String): List<PersonalRecord>

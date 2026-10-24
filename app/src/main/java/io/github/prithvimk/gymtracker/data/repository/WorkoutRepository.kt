@@ -3,6 +3,7 @@ package io.github.prithvimk.gymtracker.data.repository
 import io.github.prithvimk.gymtracker.data.db.dao.PersonalRecordDao
 import io.github.prithvimk.gymtracker.data.db.dao.WorkoutDao
 import io.github.prithvimk.gymtracker.data.db.dao.WorkoutExerciseEntry
+import io.github.prithvimk.gymtracker.data.db.dao.WorkoutRecord
 import io.github.prithvimk.gymtracker.data.db.entity.PersonalRecord
 import io.github.prithvimk.gymtracker.data.db.entity.Workout
 import io.github.prithvimk.gymtracker.data.db.entity.WorkoutExercise
@@ -127,6 +128,10 @@ class WorkoutRepository(
 
     fun observePersonalRecords(exerciseId: String): Flow<List<PersonalRecord>> =
         personalRecordDao.observeForExercise(exerciseId)
+
+    /** Records set in the workout, with exercise names, in the order the logger shows them. */
+    fun observeWorkoutRecords(workoutId: String): Flow<List<WorkoutRecord>> =
+        personalRecordDao.observeForWorkout(workoutId)
 
     /** Saves the workout. Its start time orders sessions, so its exercises' records are worked out again. */
     suspend fun saveWorkout(workout: Workout) {

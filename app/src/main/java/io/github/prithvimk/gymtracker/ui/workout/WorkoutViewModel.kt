@@ -19,6 +19,7 @@ import io.github.prithvimk.gymtracker.domain.DEFAULT_REST_SECONDS
 import io.github.prithvimk.gymtracker.domain.MAX_REST_SECONDS
 import io.github.prithvimk.gymtracker.domain.REST_STEP_SECONDS
 import io.github.prithvimk.gymtracker.domain.WorkoutSummary
+import io.github.prithvimk.gymtracker.domain.model.PrType
 import io.github.prithvimk.gymtracker.domain.model.SetType
 import io.github.prithvimk.gymtracker.timer.RestTimer
 import io.github.prithvimk.gymtracker.timer.RestTimerState
@@ -35,6 +36,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -50,7 +52,8 @@ sealed interface WorkoutUiState {
 
     /**
      * [sets] maps each workout exercise id to its sets, in order. [previousSets] maps each exercise id
-     * (from the library) to its sets from the last finished workout that had it.
+     * (from the library) to its sets from the last finished workout that had it. [badges] maps each set
+     * id that holds a record to the record types it holds.
      */
     data class Active(
         val workout: Workout,
@@ -58,13 +61,18 @@ sealed interface WorkoutUiState {
         val sets: Map<String, List<WorkoutSet>> = emptyMap(),
         val previousSets: Map<String, List<WorkoutSet>> = emptyMap(),
         val routineName: String? = null,
+        val badges: Map<String, List<PrType>> = emptyMap(),
     ) : WorkoutUiState
 }
 
-/** A finished workout's summary, kept until it is dismissed. [savingAsRoutine] is the routine name being typed. */
+/**
+ * A finished workout's summary and the records it set, kept until it is dismissed. [savingAsRoutine] is
+ * the routine name being typed.
+ */
 data class FinishedWorkout(
     val workoutId: String,
     val summary: WorkoutSummary,
+    val records: List<ExerciseRecords> = emptyList(),
     val savingAsRoutine: String? = null,
     val routineNameError: Boolean = false,
 )
@@ -108,22 +116,19 @@ class WorkoutViewModel(
                             .map { entries -> entries.map { it.exerciseId }.toSet() }
                             .distinctUntilChanged()
                             .mapLatest { ids -> ids.associateWith { workoutRepository.previousSets(it, workoutId) } }
+                    val setsAndBadges =
+                        combine(
+                            workoutRepository.observeSetsForWorkout(workoutId),
+                            workoutRepository.observeWorkoutRecords(workoutId),
+                        ) { sets, records -> sets.groupBy { it.workoutExerciseId } to setBadges(records) }
                     combine(
                         activeWorkout.filter { it?.id == workoutId }.filterNotNull(),
                         exercises,
-                        workoutRepository.observeSetsForWorkout(workoutId),
+                        setsAndBadges,
                         previousSets,
                         workoutRepository.observeRoutineName(workoutId),
-                    ) { workout, entries, sets, previous, routineName ->
-                        WorkoutUiState.Active(
-                            workout,
-                            entries,
-                            sets.groupBy {
-                                it.workoutExerciseId
-                            },
-                            previous,
-                            routineName
-                        )
+                    ) { workout, entries, (sets, badges), previous, routineName ->
+                        WorkoutUiState.Active(workout, entries, sets, previous, routineName, badges)
                     }
                 }
             }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), WorkoutUiState.Loading)
@@ -174,8 +179,9 @@ class WorkoutViewModel(
         restTimer.skip()
         viewModelScope.launch {
             workoutRepository.finishWorkout(active.workout.id)
+            val records = recordsByExercise(workoutRepository.observeWorkoutRecords(active.workout.id).first())
             _finished.value =
-                workoutRepository.summarize(active.workout.id)?.let { FinishedWorkout(active.workout.id, it) }
+                workoutRepository.summarize(active.workout.id)?.let { FinishedWorkout(active.workout.id, it, records) }
         }
     }
 
