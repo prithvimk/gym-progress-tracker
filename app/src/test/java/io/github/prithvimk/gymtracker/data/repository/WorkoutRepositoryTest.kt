@@ -14,6 +14,7 @@ import io.github.prithvimk.gymtracker.data.workout
 import io.github.prithvimk.gymtracker.data.workoutExercise
 import io.github.prithvimk.gymtracker.data.workoutSet
 import io.github.prithvimk.gymtracker.domain.WorkoutSummary
+import io.github.prithvimk.gymtracker.domain.model.PrType
 import io.github.prithvimk.gymtracker.domain.model.SetType
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -498,6 +499,119 @@ class WorkoutRepositoryTest {
 
         assertEquals(45, repository.observeExerciseEntries(workout.id).first().single().restSeconds)
     }
+
+    @Test
+    fun `completing a set that beats last session stores the records`() = runTest {
+        logPastBench("past", startedAt = 0L, weightKg = 100.0, reps = 5)
+        db.workoutDao().upsert(workout("today", startedAt = 100L))
+        db.workoutDao().upsertExercise(workoutExercise("today-bench", "today", "bench"))
+        db.workoutDao().upsertSet(workoutSet("top", "today-bench", weightKg = 102.5, reps = 5))
+        clock = 200L
+
+        repository.setSetCompleted("top", completed = true)
+
+        val records = recordsFor("bench").filter { it.setId == "top" }
+        assertEquals(setOf(PrType.WEIGHT, PrType.E1RM, PrType.VOLUME), records.map { it.type }.toSet())
+        assertTrue(records.all { it.achievedAt == 200L && it.createdAt == 200L })
+    }
+
+    @Test
+    fun `unmarking the set removes its records`() = runTest {
+        logPastBench("past", startedAt = 0L, weightKg = 100.0, reps = 5)
+        db.workoutDao().upsert(workout("today", startedAt = 100L))
+        db.workoutDao().upsertExercise(workoutExercise("today-bench", "today", "bench"))
+        db.workoutDao().upsertSet(workoutSet("top", "today-bench", weightKg = 102.5, reps = 5))
+        repository.setSetCompleted("top", completed = true)
+
+        repository.setSetCompleted("top", completed = false)
+
+        assertTrue(recordsFor("bench").none { it.setId == "top" })
+        assertEquals(setOf("past-set"), recordsFor("bench").map { it.setId }.toSet())
+    }
+
+    @Test
+    fun `editing a past set's weight recomputes later records and keeps record ids`() = runTest {
+        logPastBench("w1", startedAt = 0L, weightKg = 100.0, reps = 5)
+        logPastBench("w2", startedAt = 10L, weightKg = 102.5, reps = 5)
+        repository.backfillPersonalRecordsIfMissing()
+        val before = recordsFor("bench").single { it.type == PrType.WEIGHT && it.setId == "w1-set" }
+
+        repository.updateSetWeight("w1-set", 110.0)
+
+        val weight = recordsFor("bench").filter { it.type == PrType.WEIGHT }
+        assertEquals(listOf("w1-set"), weight.map { it.setId })
+        assertEquals(110.0, weight.single().value, 0.0)
+        assertEquals(before.id, weight.single().id)
+    }
+
+    @Test
+    fun `deleting a set, an exercise or a workout brings back the records they beat`() = runTest {
+        logPastBench("w1", startedAt = 0L, weightKg = 100.0, reps = 5)
+        logPastBench("w2", startedAt = 10L, weightKg = 105.0, reps = 5)
+        logPastBench("w3", startedAt = 20L, weightKg = 102.5, reps = 5)
+        logPastBench("w4", startedAt = 30L, weightKg = 104.0, reps = 5)
+        repository.backfillPersonalRecordsIfMissing()
+        assertEquals(listOf("w1-set", "w2-set"), weightRecordSets())
+
+        repository.deleteSet("w2-set")
+        assertEquals(listOf("w1-set", "w3-set", "w4-set"), weightRecordSets())
+
+        repository.deleteWorkoutExercise("w4-bench")
+        assertEquals(listOf("w1-set", "w3-set"), weightRecordSets())
+
+        repository.deleteWorkout("w3")
+        assertEquals(listOf("w1-set"), weightRecordSets())
+    }
+
+    @Test
+    fun `an exercise logged twice in a workout counts as one session for volume`() = runTest {
+        logPastBench("w1", startedAt = 0L, weightKg = 100.0, reps = 5)
+        db.workoutDao().upsert(workout("w2", startedAt = 10L, endedAt = 20L))
+        db.workoutDao().upsertExercise(workoutExercise("first", "w2", "bench", position = 0))
+        db.workoutDao().upsertExercise(workoutExercise("second", "w2", "bench", position = 1))
+        db.workoutDao().upsertSet(workoutSet("a", "first", weightKg = 60.0, reps = 5, completedAt = 11L))
+        db.workoutDao().upsertSet(workoutSet("b", "second", weightKg = 60.0, reps = 5, completedAt = 12L))
+
+        repository.backfillPersonalRecordsIfMissing()
+
+        val volume = recordsFor("bench").filter { it.type == PrType.VOLUME }.sortedBy { it.achievedAt }
+        assertEquals(listOf("w1-set" to 500.0, "b" to 600.0), volume.map { it.setId to it.value })
+    }
+
+    @Test
+    fun `backfill works out records once and leaves stored ones alone`() = runTest {
+        logPastBench("w1", startedAt = 0L, weightKg = 100.0, reps = 5)
+
+        repository.backfillPersonalRecordsIfMissing()
+        val first = recordsFor("bench")
+        db.workoutDao().upsertSet(
+            workoutSet("sneaky", "w1-bench", position = 1, weightKg = 200.0, reps = 1, completedAt = 2L)
+        )
+        repository.backfillPersonalRecordsIfMissing()
+
+        assertEquals(3, first.size)
+        assertEquals(first.toSet(), recordsFor("bench").toSet())
+    }
+
+    private suspend fun logPastBench(workoutId: String, startedAt: Long, weightKg: Double, reps: Int) {
+        db.workoutDao().upsert(workout(workoutId, startedAt = startedAt, endedAt = startedAt + 5))
+        db.workoutDao().upsertExercise(workoutExercise("$workoutId-bench", workoutId, "bench"))
+        db.workoutDao().upsertSet(
+            workoutSet(
+                "$workoutId-set",
+                "$workoutId-bench",
+                weightKg = weightKg,
+                reps = reps,
+                completedAt =
+                startedAt + 1
+            ),
+        )
+    }
+
+    private suspend fun recordsFor(exerciseId: String) = repository.observePersonalRecords(exerciseId).first()
+
+    private suspend fun weightRecordSets() =
+        recordsFor("bench").filter { it.type == PrType.WEIGHT }.sortedBy { it.achievedAt }.map { it.setId }
 
     private fun repositoryFor(database: GymDatabase) = WorkoutRepository(
         database.workoutDao(),
