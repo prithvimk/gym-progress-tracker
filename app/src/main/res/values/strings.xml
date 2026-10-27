@@ -52,6 +52,14 @@
     <string name="workout_summary_volume_value">%1$s kg</string>
     <string name="workout_summary_no_sets">No sets were marked done, so nothing counts towards volume.</string>
     <string name="workout_summary_done">Done</string>
+    <plurals name="workout_summary_records">
+        <item quantity="one">%d new PR</item>
+        <item quantity="other">%d new PRs</item>
+    </plurals>
+    <string name="record_weight">Heaviest weight: %1$s kg</string>
+    <string name="record_reps_at_weight">Most reps at %1$s kg: %2$d</string>
+    <string name="record_e1rm">Best estimated 1RM: %1$s kg</string>
+    <string name="record_volume">Best session volume: %1$s kg</string>
     <string name="workout_discard_title">Discard this workout?</string>
     <string name="workout_discard_body">Everything logged in this workout will be deleted.</string>
     <string name="workout_discard_confirm">Discard</string>
@@ -114,6 +122,13 @@
     <string name="set_add">Add set</string>
     <string name="set_last_value">%1$s × %2$d</string>
     <string name="set_last_none">–</string>
+    <string name="set_record_badge">PR</string>
+    <!-- Read out for the badge, e.g. "Personal record: heaviest weight, best estimated 1RM". -->
+    <string name="set_record_description">Personal record: %1$s</string>
+    <string name="set_record_weight">heaviest weight</string>
+    <string name="set_record_reps_at_weight">most reps at this weight</string>
+    <string name="set_record_e1rm">best estimated 1RM</string>
+    <string name="set_record_volume">best session volume</string>
     <string name="set_options">Options for set %1$s</string>
     <string name="set_weight_description">Set %1$s weight in kg</string>
     <string name="set_reps_description">Set %1$s reps</string>

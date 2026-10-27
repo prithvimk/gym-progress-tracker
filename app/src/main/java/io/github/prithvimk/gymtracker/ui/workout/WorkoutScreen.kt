@@ -1,6 +1,10 @@
 package io.github.prithvimk.gymtracker.ui.workout
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,10 +19,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
@@ -47,10 +55,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -64,6 +74,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.prithvimk.gymtracker.R
 import io.github.prithvimk.gymtracker.data.db.dao.WorkoutExerciseEntry
+import io.github.prithvimk.gymtracker.data.db.dao.WorkoutRecord
 import io.github.prithvimk.gymtracker.data.db.entity.Workout
 import io.github.prithvimk.gymtracker.data.db.entity.WorkoutSet
 import io.github.prithvimk.gymtracker.data.repository.RoutineSummary
@@ -72,6 +83,7 @@ import io.github.prithvimk.gymtracker.domain.MAX_REST_SECONDS
 import io.github.prithvimk.gymtracker.domain.WorkoutSummary
 import io.github.prithvimk.gymtracker.domain.model.Equipment
 import io.github.prithvimk.gymtracker.domain.model.MuscleGroup
+import io.github.prithvimk.gymtracker.domain.model.PrType
 import io.github.prithvimk.gymtracker.domain.model.SetType
 import io.github.prithvimk.gymtracker.timer.RestTimerState
 import io.github.prithvimk.gymtracker.ui.components.Stepper
@@ -180,6 +192,7 @@ fun WorkoutRoute(
         if (routineName == null) {
             WorkoutSummaryDialog(
                 summary = workout.summary,
+                records = workout.records,
                 onSaveAsRoutine = viewModel::onSaveAsRoutineClick,
                 onDismiss = viewModel::onSummaryDismiss,
             )
@@ -241,12 +254,22 @@ fun WorkoutRoute(
 }
 
 @Composable
-private fun WorkoutSummaryDialog(summary: WorkoutSummary, onSaveAsRoutine: () -> Unit, onDismiss: () -> Unit) {
+private fun WorkoutSummaryDialog(
+    summary: WorkoutSummary,
+    records: List<ExerciseRecords>,
+    onSaveAsRoutine: () -> Unit,
+    onDismiss: () -> Unit,
+) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.workout_summary_title)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // Scrolls, since a big session's records can outgrow the dialog.
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+            ) {
+                if (records.isNotEmpty()) RecordsCelebration(records)
                 SummaryRow(stringResource(R.string.workout_summary_duration), formatElapsed(summary.durationMillis))
                 SummaryRow(stringResource(R.string.workout_summary_exercises), summary.exerciseCount.toString())
                 SummaryRow(stringResource(R.string.workout_summary_sets), summary.setCount.toString())
@@ -271,6 +294,64 @@ private fun WorkoutSummaryDialog(summary: WorkoutSummary, onSaveAsRoutine: () ->
             TextButton(onClick = onSaveAsRoutine) { Text(stringResource(R.string.workout_save_as_routine)) }
         },
     )
+}
+
+/** The records a finished workout set, under a trophy that pops in, grouped by exercise. */
+@Composable
+private fun RecordsCelebration(records: List<ExerciseRecords>) {
+    val trophyScale = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        trophyScale.animateTo(1f, spring(dampingRatio = Spring.DampingRatioHighBouncy, stiffness = Spring.StiffnessLow))
+    }
+    val count = records.sumOf { it.records.size }
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 8.dp)
+            .background(MaterialTheme.colorScheme.tertiaryContainer, RoundedCornerShape(12.dp))
+            .padding(12.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                painter = painterResource(R.drawable.ic_trophy),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.tertiary,
+                modifier = Modifier.size(32.dp).scale(trophyScale.value),
+            )
+            Text(
+                text = pluralStringResource(R.plurals.workout_summary_records, count, count),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                modifier = Modifier.padding(start = 12.dp),
+            )
+        }
+        records.forEach { exercise ->
+            Column {
+                Text(
+                    text = exercise.exerciseName,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer,
+                )
+                exercise.records.forEach { record ->
+                    Text(
+                        text = recordText(record),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun recordText(record: WorkoutRecord): String = when (record.type) {
+    PrType.WEIGHT -> stringResource(R.string.record_weight, formatSetNumber(record.value))
+    PrType.REPS_AT_WEIGHT ->
+        stringResource(R.string.record_reps_at_weight, formatSetNumber(record.weightKg).ifEmpty { "0" }, record.reps)
+    PrType.E1RM -> stringResource(R.string.record_e1rm, formatVolume(record.value))
+    PrType.VOLUME -> stringResource(R.string.record_volume, formatVolume(record.value))
 }
 
 @Composable
@@ -567,6 +648,7 @@ private fun ActiveContent(
                     entry = entry,
                     sets = state.sets[entry.id].orEmpty(),
                     previousSets = state.previousSets[entry.exerciseId].orEmpty(),
+                    badges = state.badges,
                     keypad = openKeypad,
                     setActions = setActions,
                     onAddSet = { onAddSet(entry.id) },
@@ -612,6 +694,7 @@ private fun ExerciseCard(
     entry: WorkoutExerciseEntry,
     sets: List<WorkoutSet>,
     previousSets: List<WorkoutSet>,
+    badges: Map<String, List<PrType>>,
     keypad: KeypadState?,
     setActions: SetActions,
     onAddSet: () -> Unit,
@@ -718,6 +801,7 @@ private fun ExerciseCard(
                 actions = setActions,
                 onAddSet = onAddSet,
                 modifier = Modifier.padding(start = 4.dp, end = 4.dp, bottom = 4.dp),
+                badges = badges,
             )
         }
     }
@@ -841,7 +925,7 @@ private fun ActivePreview() {
         )
     GymTrackerTheme(dynamicColor = false) {
         WorkoutScreen(
-            state = WorkoutUiState.Active(workout, exercises, sets),
+            state = WorkoutUiState.Active(workout, exercises, sets, badges = mapOf("s2" to listOf(PrType.WEIGHT))),
             onStartClick = {},
             onFinishClick = {},
             onDiscardClick = {},

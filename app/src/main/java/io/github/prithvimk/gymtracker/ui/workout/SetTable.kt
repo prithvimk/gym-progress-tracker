@@ -2,6 +2,13 @@
 
 package io.github.prithvimk.gymtracker.ui.workout
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -20,6 +27,8 @@ import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -49,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import io.github.prithvimk.gymtracker.R
 import io.github.prithvimk.gymtracker.data.db.entity.WorkoutSet
 import io.github.prithvimk.gymtracker.domain.matchPrevious
+import io.github.prithvimk.gymtracker.domain.model.PrType
 import io.github.prithvimk.gymtracker.domain.model.SetType
 
 /** Set edits from the logger. Every callback takes the set's id. */
@@ -66,7 +76,8 @@ class SetActions(
 
 /**
  * The sets of one exercise as a table, with a button to add another set. [previousSets] are the
- * exercise's sets from last session, shown beside their counterparts in the "Last" column. [keypad]
+ * exercise's sets from last session, shown beside their counterparts in the "Last" column. [badges]
+ * maps each set id that holds a record to its record types, shown as a PR badge on the set. [keypad]
  * is the keypad's edit, if it is typing into one of these sets.
  */
 @Composable
@@ -77,6 +88,7 @@ fun SetTable(
     actions: SetActions,
     onAddSet: () -> Unit,
     modifier: Modifier = Modifier,
+    badges: Map<String, List<PrType>> = emptyMap(),
 ) {
     val labels = setLabels(sets.map { it.type })
     val lastTime = matchPrevious(sets, previousSets)
@@ -91,7 +103,14 @@ fun SetTable(
                 doneCell = { HeaderText(stringResource(R.string.set_header_done)) },
             )
             sets.forEachIndexed { index, set ->
-                SetRow(set, labels[index], lastTime[index], keypad?.takeIf { it.target.setId == set.id }, actions)
+                SetRow(
+                    set,
+                    labels[index],
+                    lastTime[index],
+                    badges[set.id].orEmpty(),
+                    keypad?.takeIf { it.target.setId == set.id },
+                    actions,
+                )
             }
         }
         TextButton(onClick = onAddSet, modifier = Modifier.fillMaxWidth()) {
@@ -102,14 +121,21 @@ fun SetTable(
 }
 
 @Composable
-private fun SetRow(set: WorkoutSet, label: SetLabel, lastTime: WorkoutSet?, keypad: KeypadState?, actions: SetActions) {
+private fun SetRow(
+    set: WorkoutSet,
+    label: SetLabel,
+    lastTime: WorkoutSet?,
+    badge: List<PrType>,
+    keypad: KeypadState?,
+    actions: SetActions,
+) {
     val completed = set.completedAt != null
     val labelText = label.text()
     val rowColor =
         if (completed) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow
     SetRowLayout(
         modifier = Modifier.padding(vertical = 2.dp).background(rowColor, RoundedCornerShape(8.dp)),
-        labelCell = { SetLabelButton(set, labelText, actions) },
+        labelCell = { RecordBadgeBox(badge) { SetLabelButton(set, labelText, actions) } },
         lastCell = { LastTimeText(lastTime) },
         weightCell = {
             SetValueField(
@@ -171,6 +197,32 @@ private fun SetLabelButton(set: WorkoutSet, labelText: String, actions: SetActio
                 },
             )
         }
+    }
+}
+
+/** Puts a PR badge on [content] while [types] is not empty. It pops in when the set ticked off sets a record. */
+@Composable
+private fun RecordBadgeBox(types: List<PrType>, content: @Composable () -> Unit) {
+    val description =
+        stringResource(R.string.set_record_description, types.map { stringResource(it.badgeRes) }.joinToString())
+    BadgedBox(
+        badge = {
+            AnimatedVisibility(
+                visible = types.isNotEmpty(),
+                enter = scaleIn(spring(dampingRatio = Spring.DampingRatioMediumBouncy)) + fadeIn(),
+                exit = scaleOut() + fadeOut(),
+            ) {
+                Badge(
+                    containerColor = MaterialTheme.colorScheme.tertiary,
+                    contentColor = MaterialTheme.colorScheme.onTertiary,
+                    modifier = Modifier.semantics { contentDescription = description },
+                ) {
+                    Text(stringResource(R.string.set_record_badge))
+                }
+            }
+        },
+    ) {
+        content()
     }
 }
 
@@ -291,6 +343,15 @@ private fun SetLabel.text(): String = when (this) {
     is SetLabel.Number -> value.toString()
     is SetLabel.Kind -> stringResource(type.shortRes)
 }
+
+private val PrType.badgeRes: Int
+    get() =
+        when (this) {
+            PrType.WEIGHT -> R.string.set_record_weight
+            PrType.REPS_AT_WEIGHT -> R.string.set_record_reps_at_weight
+            PrType.E1RM -> R.string.set_record_e1rm
+            PrType.VOLUME -> R.string.set_record_volume
+        }
 
 private val SetType.nameRes: Int
     get() =
