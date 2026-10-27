@@ -3,6 +3,7 @@ package io.github.prithvimk.gymtracker.data.repository
 import io.github.prithvimk.gymtracker.data.db.dao.PersonalRecordDao
 import io.github.prithvimk.gymtracker.data.db.dao.WorkoutDao
 import io.github.prithvimk.gymtracker.data.db.dao.WorkoutExerciseEntry
+import io.github.prithvimk.gymtracker.data.db.dao.WorkoutHistoryRow
 import io.github.prithvimk.gymtracker.data.db.dao.WorkoutRecord
 import io.github.prithvimk.gymtracker.data.db.entity.PersonalRecord
 import io.github.prithvimk.gymtracker.data.db.entity.Workout
@@ -119,6 +120,9 @@ class WorkoutRepository(
     }
 
     fun observeWorkouts(): Flow<List<Workout>> = workoutDao.observeAll()
+
+    /** Finished workouts for the history list, newest first. */
+    fun observeHistory(): Flow<List<WorkoutHistoryRow>> = workoutDao.observeHistory()
 
     fun observeActiveWorkout(): Flow<Workout?> = workoutDao.observeActive()
 

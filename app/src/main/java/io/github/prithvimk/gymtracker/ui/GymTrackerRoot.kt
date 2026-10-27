@@ -20,13 +20,13 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import io.github.prithvimk.gymtracker.ui.exercises.ExercisesRoute
+import io.github.prithvimk.gymtracker.ui.history.HistoryRoute
 import io.github.prithvimk.gymtracker.ui.navigation.TopLevelDestination
 import io.github.prithvimk.gymtracker.ui.navigation.icon
 import io.github.prithvimk.gymtracker.ui.navigation.tabEnterTransition
 import io.github.prithvimk.gymtracker.ui.navigation.tabExitTransition
 import io.github.prithvimk.gymtracker.ui.routines.RoutineEditorRoute
 import io.github.prithvimk.gymtracker.ui.routines.RoutineEditorViewModel
-import io.github.prithvimk.gymtracker.ui.screens.HistoryScreen
 import io.github.prithvimk.gymtracker.ui.screens.SettingsScreen
 import io.github.prithvimk.gymtracker.ui.workout.WorkoutRoute
 
@@ -90,7 +90,7 @@ fun GymTrackerRoot() {
             ) {
                 RoutineEditorRoute(onDone = { navController.popBackStack() })
             }
-            composable(TopLevelDestination.HISTORY.route) { HistoryScreen() }
+            composable(TopLevelDestination.HISTORY.route) { HistoryRoute() }
             composable(TopLevelDestination.EXERCISES.route) { ExercisesRoute() }
             composable(TopLevelDestination.SETTINGS.route) { SettingsScreen() }
         }

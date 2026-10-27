@@ -4,7 +4,6 @@
     <string name="nav_history">History</string>
     <string name="nav_exercises">Exercises</string>
     <string name="nav_settings">Settings</string>
-    <string name="placeholder_history">Past workouts will show up here.</string>
     <string name="placeholder_settings">Units, rest timer and export settings will live here.</string>
 
     <!-- Workout screen -->
@@ -55,6 +54,29 @@
     <plurals name="workout_summary_records">
         <item quantity="one">%d new PR</item>
         <item quantity="other">%d new PRs</item>
+    </plurals>
+    <string name="history_empty">No workouts yet. Finish one and it shows up here.</string>
+    <string name="history_this_week">This week</string>
+    <string name="history_last_week">Last week</string>
+    <!-- A past week's header, e.g. "Week of 13 Oct". -->
+    <string name="history_week_of">Week of %1$s</string>
+    <!-- After a week's header, e.g. "3 workouts · 12,340 kg". -->
+    <string name="history_week_totals">%1$s · %2$s kg</string>
+    <plurals name="history_week_workouts">
+        <item quantity="one">%d workout</item>
+        <item quantity="other">%d workouts</item>
+    </plurals>
+    <!-- Title of a history card for a workout not started from a routine. -->
+    <string name="history_workout_untitled">Workout</string>
+    <!-- A history card's numbers, e.g. "1:02:15 · 18 sets · 8,420 kg". -->
+    <string name="history_workout_stats">%1$s · %2$s · %3$s</string>
+    <plurals name="history_workout_sets">
+        <item quantity="one">%d set</item>
+        <item quantity="other">%d sets</item>
+    </plurals>
+    <plurals name="history_workout_records">
+        <item quantity="one">%d PR</item>
+        <item quantity="other">%d PRs</item>
     </plurals>
     <string name="record_weight">Heaviest weight: %1$s kg</string>
     <string name="record_reps_at_weight">Most reps at %1$s kg: %2$d</string>
