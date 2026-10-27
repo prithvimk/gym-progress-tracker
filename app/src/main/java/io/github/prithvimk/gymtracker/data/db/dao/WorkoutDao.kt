@@ -134,6 +134,33 @@ interface WorkoutDao {
     @Query("UPDATE workouts SET endedAt = :endedAt, updatedAt = :endedAt WHERE id = :id AND endedAt IS NULL")
     suspend fun finish(id: String, endedAt: Long)
 
+    /**
+     * The last time anything in the workout was touched: its start, a notes edit, an exercise added or
+     * changed, or a set added, edited or ticked. Null if the workout does not exist.
+     */
+    @Query(
+        """
+        SELECT MAX(t) FROM (
+            SELECT MAX(startedAt, updatedAt) AS t FROM workouts WHERE id = :workoutId
+            UNION ALL
+            SELECT updatedAt FROM workout_exercises WHERE workoutId = :workoutId
+            UNION ALL
+            SELECT MAX(s.updatedAt, COALESCE(s.completedAt, 0)) FROM workout_sets s
+                JOIN workout_exercises we ON we.id = s.workoutExerciseId
+                WHERE we.workoutId = :workoutId
+        )
+        """
+    )
+    suspend fun getLastActivity(workoutId: String): Long?
+
+    @Query(
+        """
+        SELECT COUNT(*) FROM workout_sets s JOIN workout_exercises we ON we.id = s.workoutExerciseId
+        WHERE we.workoutId = :workoutId AND s.completedAt IS NOT NULL
+        """
+    )
+    suspend fun countCompletedSets(workoutId: String): Int
+
     @Query("UPDATE workouts SET notes = :notes, updatedAt = :updatedAt WHERE id = :id")
     suspend fun updateNotes(id: String, notes: String, updatedAt: Long)
 

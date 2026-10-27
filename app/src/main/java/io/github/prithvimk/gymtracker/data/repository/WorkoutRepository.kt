@@ -16,6 +16,18 @@ import java.util.UUID
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 
+/** What [WorkoutRepository.endIdleWorkout] did with the active workout. */
+sealed interface IdleWorkoutResult {
+    /** No workout was active, or it was still in use. */
+    data object StillActive : IdleWorkoutResult
+
+    /** The workout was finished at [endedAt], its last activity. */
+    data class Ended(val workoutId: String, val endedAt: Long) : IdleWorkoutResult
+
+    /** The workout had no sets done, so there was nothing to keep and it was deleted. */
+    data object Discarded : IdleWorkoutResult
+}
+
 /** Logged workouts, their exercises and sets, and PRs. */
 class WorkoutRepository(
     private val workoutDao: WorkoutDao,
@@ -46,6 +58,23 @@ class WorkoutRepository(
     /** Ends the workout. Does nothing if it has already finished. */
     suspend fun finishWorkout(id: String) {
         workoutDao.finish(id, endedAt = now())
+    }
+
+    /**
+     * Ends the active workout if nothing in it has been touched for [IDLE_LIMIT_MILLIS], so one left
+     * running by mistake doesn't count days towards its duration. It ends at its last activity, not
+     * now; one with no sets done is deleted instead, since there is nothing in it to keep.
+     */
+    suspend fun endIdleWorkout(): IdleWorkoutResult {
+        val active = workoutDao.getActive() ?: return IdleWorkoutResult.StillActive
+        val lastActivity = workoutDao.getLastActivity(active.id) ?: active.startedAt
+        if (now() - lastActivity < IDLE_LIMIT_MILLIS) return IdleWorkoutResult.StillActive
+        if (workoutDao.countCompletedSets(active.id) == 0) {
+            deleteWorkout(active.id)
+            return IdleWorkoutResult.Discarded
+        }
+        workoutDao.finish(active.id, endedAt = lastActivity)
+        return IdleWorkoutResult.Ended(active.id, lastActivity)
     }
 
     /** Duration, completed sets and volume of the workout, or null if it does not exist. */
@@ -193,5 +222,10 @@ class WorkoutRepository(
 
     private suspend fun recomputeRecords(exerciseIds: List<String>) {
         exerciseIds.forEach { personalRecordDao.recompute(it, now = now(), newId = newId) }
+    }
+
+    companion object {
+        /** How long an active workout can go untouched before [endIdleWorkout] ends it: 3 hours. */
+        const val IDLE_LIMIT_MILLIS = 3 * 60 * 60 * 1_000L
     }
 }

@@ -646,6 +646,72 @@ class WorkoutRepositoryTest {
         assertNull(history.last().routineName)
     }
 
+    @Test
+    fun `a workout touched within the idle limit keeps running`() = runTest {
+        val workout = repository.startEmptyWorkout()
+        repository.addExercises(workout.id, listOf("bench"))
+        val entry = repository.observeExerciseEntries(workout.id).first().single()
+        repository.addSet(entry.id)
+        val set = repository.observeSets(entry.id).first().single()
+        clock += 5 * HOUR
+        repository.updateSetReps(set.id, 8)
+        repository.setSetCompleted(set.id, completed = true)
+        clock += 3 * HOUR - 1
+
+        assertEquals(IdleWorkoutResult.StillActive, repository.endIdleWorkout())
+        assertEquals(workout.id, repository.observeActiveWorkout().first()?.id)
+    }
+
+    @Test
+    fun `an idle workout ends at its last activity`() = runTest {
+        val workout = repository.startEmptyWorkout()
+        repository.addExercises(workout.id, listOf("bench"))
+        val entry = repository.observeExerciseEntries(workout.id).first().single()
+        repository.addSet(entry.id)
+        val set = repository.observeSets(entry.id).first().single()
+        clock += HOUR
+        repository.updateSetReps(set.id, 8)
+        repository.setSetCompleted(set.id, completed = true)
+        val lastActivity = clock
+        clock += 73 * HOUR
+
+        assertEquals(IdleWorkoutResult.Ended(workout.id, lastActivity), repository.endIdleWorkout())
+        assertNull(repository.observeActiveWorkout().first())
+        assertEquals(HOUR, repository.summarize(workout.id)?.durationMillis)
+    }
+
+    @Test
+    fun `editing notes counts as activity`() = runTest {
+        val workout = repository.startEmptyWorkout()
+        clock += 4 * HOUR
+        repository.updateWorkoutNotes(workout.id, "Felt strong")
+        clock += HOUR
+
+        assertEquals(IdleWorkoutResult.StillActive, repository.endIdleWorkout())
+    }
+
+    @Test
+    fun `an idle workout with no sets done is discarded`() = runTest {
+        val workout = repository.startEmptyWorkout()
+        repository.addExercises(workout.id, listOf("bench"))
+        val entry = repository.observeExerciseEntries(workout.id).first().single()
+        repository.addSet(entry.id)
+        clock += 3 * HOUR
+
+        assertEquals(IdleWorkoutResult.Discarded, repository.endIdleWorkout())
+        assertNull(repository.observeActiveWorkout().first())
+        assertTrue(repository.observeWorkouts().first().none { it.id == workout.id })
+    }
+
+    @Test
+    fun `endIdleWorkout does nothing with no active workout`() = runTest {
+        logPastBench("w1", startedAt = 0L, weightKg = 100.0, reps = 5)
+        clock += 100 * HOUR
+
+        assertEquals(IdleWorkoutResult.StillActive, repository.endIdleWorkout())
+        assertEquals(5L, repository.observeHistory().first().single().let { it.endedAt - it.startedAt })
+    }
+
     private suspend fun logPastBench(workoutId: String, startedAt: Long, weightKg: Double, reps: Int) {
         db.workoutDao().upsert(workout(workoutId, startedAt = startedAt, endedAt = startedAt + 5))
         db.workoutDao().upsertExercise(workoutExercise("$workoutId-bench", workoutId, "bench"))
@@ -675,5 +741,6 @@ class WorkoutRepositoryTest {
 
     private companion object {
         const val FILE_DB = "active-workout-test.db"
+        const val HOUR = 3_600_000L
     }
 }

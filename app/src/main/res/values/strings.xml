@@ -51,6 +51,10 @@
     <string name="workout_summary_volume_value">%1$s kg</string>
     <string name="workout_summary_no_sets">No sets were marked done, so nothing counts towards volume.</string>
     <string name="workout_summary_done">Done</string>
+    <string name="workout_summary_ended_automatically">Ended automatically after 3 hours without activity. It ends at your last activity, so the duration leaves out the idle time.</string>
+    <string name="workout_idle_discarded_title">Workout discarded</string>
+    <string name="workout_idle_discarded_body">Your workout was left open for over 3 hours with no sets done, so it was discarded.</string>
+    <string name="workout_idle_discarded_ok">OK</string>
     <plurals name="workout_summary_records">
         <item quantity="one">%d new PR</item>
         <item quantity="other">%d new PRs</item>
