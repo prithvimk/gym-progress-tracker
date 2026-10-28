@@ -12,18 +12,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import io.github.prithvimk.gymtracker.R
-import io.github.prithvimk.gymtracker.ui.theme.GymTrackerTheme
 import io.github.prithvimk.gymtracker.update.DevUpdateSection
 
-// Placeholder screens for Phase 0. Each moves to its own package as it gets built.
-
-@Composable
-fun HistoryScreen(modifier: Modifier = Modifier) {
-    PlaceholderScreen(R.string.nav_history, R.string.placeholder_history, modifier)
-}
+// Placeholder screen for Phase 0. It moves to its own package when Settings gets built.
 
 @Composable
 fun SettingsScreen(modifier: Modifier = Modifier) {
@@ -52,13 +45,5 @@ private fun PlaceholderScreen(@StringRes titleRes: Int, @StringRes bodyRes: Int,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(top = 8.dp),
         )
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun HistoryScreenPreview() {
-    GymTrackerTheme(dynamicColor = false) {
-        HistoryScreen()
     }
 }

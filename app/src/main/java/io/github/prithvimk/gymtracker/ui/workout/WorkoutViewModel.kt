@@ -11,6 +11,7 @@ import io.github.prithvimk.gymtracker.data.db.entity.Exercise
 import io.github.prithvimk.gymtracker.data.db.entity.Workout
 import io.github.prithvimk.gymtracker.data.db.entity.WorkoutSet
 import io.github.prithvimk.gymtracker.data.repository.ExerciseRepository
+import io.github.prithvimk.gymtracker.data.repository.IdleWorkoutResult
 import io.github.prithvimk.gymtracker.data.repository.RoutineRepository
 import io.github.prithvimk.gymtracker.data.repository.RoutineSaveResult
 import io.github.prithvimk.gymtracker.data.repository.RoutineSummary
@@ -66,13 +67,14 @@ sealed interface WorkoutUiState {
 }
 
 /**
- * A finished workout's summary and the records it set, kept until it is dismissed. [savingAsRoutine] is
- * the routine name being typed.
+ * A finished workout's summary and the records it set, kept until it is dismissed. [endedAutomatically]
+ * is true when it was left idle and ended by the app. [savingAsRoutine] is the routine name being typed.
  */
 data class FinishedWorkout(
     val workoutId: String,
     val summary: WorkoutSummary,
     val records: List<ExerciseRecords> = emptyList(),
+    val endedAutomatically: Boolean = false,
     val savingAsRoutine: String? = null,
     val routineNameError: Boolean = false,
 )
@@ -133,6 +135,10 @@ class WorkoutViewModel(
                 }
             }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), WorkoutUiState.Loading)
 
+    // True while the notice that an idle workout with nothing done was deleted is showing.
+    private val _idleDiscarded = MutableStateFlow(false)
+    val idleDiscarded: StateFlow<Boolean> = _idleDiscarded.asStateFlow()
+
     private val _confirmingDiscard = MutableStateFlow(false)
     val confirmingDiscard: StateFlow<Boolean> = _confirmingDiscard.asStateFlow()
 
@@ -179,10 +185,34 @@ class WorkoutViewModel(
         restTimer.skip()
         viewModelScope.launch {
             workoutRepository.finishWorkout(active.workout.id)
-            val records = recordsByExercise(workoutRepository.observeWorkoutRecords(active.workout.id).first())
-            _finished.value =
-                workoutRepository.summarize(active.workout.id)?.let { FinishedWorkout(active.workout.id, it, records) }
+            showSummary(active.workout.id, endedAutomatically = false)
         }
+    }
+
+    /**
+     * Called whenever the screen comes to the front: a workout left untouched for hours is ended at its
+     * last activity and its summary shown, or deleted with a notice if nothing in it was done.
+     */
+    fun onResume() {
+        viewModelScope.launch {
+            when (val result = workoutRepository.endIdleWorkout()) {
+                IdleWorkoutResult.StillActive -> return@launch
+                is IdleWorkoutResult.Ended -> showSummary(result.workoutId, endedAutomatically = true)
+                IdleWorkoutResult.Discarded -> _idleDiscarded.value = true
+            }
+            _keypad.value = null
+            restTimer.skip()
+        }
+    }
+
+    fun onIdleDiscardedDismiss() {
+        _idleDiscarded.value = false
+    }
+
+    private suspend fun showSummary(workoutId: String, endedAutomatically: Boolean) {
+        val records = recordsByExercise(workoutRepository.observeWorkoutRecords(workoutId).first())
+        _finished.value =
+            workoutRepository.summarize(workoutId)?.let { FinishedWorkout(workoutId, it, records, endedAutomatically) }
     }
 
     fun onSummaryDismiss() {

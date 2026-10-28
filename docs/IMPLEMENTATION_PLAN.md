@@ -91,7 +91,7 @@ Done when: a full Push/Pull/Legs week runs from routines with the phone locked b
 
 Goal: see your past work and get rewarded for beating it.
 
-- [ ] History list grouped by week, each card showing routine name, duration, volume and PR count
+- [x] History list grouped by week, each card showing routine name, duration, volume and PR count
 - [ ] Workout detail screen; edit or delete a past workout (PRs recomputed after edits)
 - [ ] Month calendar with trained days highlighted
 - [x] PR detection on set completion: heaviest weight, most reps at a weight, best e1RM, best session volume (recomputed per exercise from its whole history after any set change; each session keeps only its best set per record type)

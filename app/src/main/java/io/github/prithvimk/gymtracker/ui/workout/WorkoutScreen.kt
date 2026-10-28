@@ -70,6 +70,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.prithvimk.gymtracker.R
@@ -108,6 +109,12 @@ fun WorkoutRoute(
     val routines by viewModel.routines.collectAsStateWithLifecycle()
     val rest by viewModel.rest.collectAsStateWithLifecycle()
     val restEdit by viewModel.restEdit.collectAsStateWithLifecycle()
+    val idleDiscarded by viewModel.idleDiscarded.collectAsStateWithLifecycle()
+    // Each time the app comes back, a workout left running by mistake is ended.
+    LifecycleResumeEffect(viewModel) {
+        viewModel.onResume()
+        onPauseOrDispose {}
+    }
     // Asked when a workout starts, since that is when the rest timer will soon want to notify.
     val requestNotifications = rememberNotificationPermissionRequest()
     val restActions = remember(viewModel) { RestActions(viewModel::onRestAdjust, viewModel::onRestSkip) }
@@ -193,6 +200,7 @@ fun WorkoutRoute(
             WorkoutSummaryDialog(
                 summary = workout.summary,
                 records = workout.records,
+                endedAutomatically = workout.endedAutomatically,
                 onSaveAsRoutine = viewModel::onSaveAsRoutineClick,
                 onDismiss = viewModel::onSummaryDismiss,
             )
@@ -234,6 +242,19 @@ fun WorkoutRoute(
         )
     }
 
+    if (idleDiscarded) {
+        AlertDialog(
+            onDismissRequest = viewModel::onIdleDiscardedDismiss,
+            title = { Text(stringResource(R.string.workout_idle_discarded_title)) },
+            text = { Text(stringResource(R.string.workout_idle_discarded_body)) },
+            confirmButton = {
+                TextButton(onClick = viewModel::onIdleDiscardedDismiss) {
+                    Text(stringResource(R.string.workout_idle_discarded_ok))
+                }
+            },
+        )
+    }
+
     if (confirmingDiscard) {
         AlertDialog(
             onDismissRequest = viewModel::onDiscardDismiss,
@@ -257,6 +278,7 @@ fun WorkoutRoute(
 private fun WorkoutSummaryDialog(
     summary: WorkoutSummary,
     records: List<ExerciseRecords>,
+    endedAutomatically: Boolean,
     onSaveAsRoutine: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -269,6 +291,14 @@ private fun WorkoutSummaryDialog(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.verticalScroll(rememberScrollState()),
             ) {
+                if (endedAutomatically) {
+                    Text(
+                        text = stringResource(R.string.workout_summary_ended_automatically),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 8.dp),
+                    )
+                }
                 if (records.isNotEmpty()) RecordsCelebration(records)
                 SummaryRow(stringResource(R.string.workout_summary_duration), formatElapsed(summary.durationMillis))
                 SummaryRow(stringResource(R.string.workout_summary_exercises), summary.exerciseCount.toString())

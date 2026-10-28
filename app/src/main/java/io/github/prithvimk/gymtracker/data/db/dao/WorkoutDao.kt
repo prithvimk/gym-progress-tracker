@@ -28,8 +28,41 @@ data class WorkoutExerciseEntry(
     val restSeconds: Int?,
 )
 
+/**
+ * A finished workout as the history list shows it. [setCount] and [volumeKg] count completed sets,
+ * the same as the finish summary; [recordCount] is how many records its sets hold.
+ */
+data class WorkoutHistoryRow(
+    val id: String,
+    val routineName: String?,
+    val startedAt: Long,
+    val endedAt: Long,
+    val setCount: Int,
+    val volumeKg: Double,
+    val recordCount: Int,
+)
+
 @Dao
 interface WorkoutDao {
+    /** Finished workouts, newest first, with what the history list shows for each. */
+    @Query(
+        """
+        SELECT w.id, r.name AS routineName, w.startedAt, w.endedAt,
+            (SELECT COUNT(*) FROM workout_sets s JOIN workout_exercises we ON we.id = s.workoutExerciseId
+                WHERE we.workoutId = w.id AND s.completedAt IS NOT NULL) AS setCount,
+            (SELECT COALESCE(SUM(s.weightKg * s.reps), 0.0) FROM workout_sets s
+                JOIN workout_exercises we ON we.id = s.workoutExerciseId
+                WHERE we.workoutId = w.id AND s.completedAt IS NOT NULL) AS volumeKg,
+            (SELECT COUNT(*) FROM personal_records pr JOIN workout_sets s ON s.id = pr.setId
+                JOIN workout_exercises we ON we.id = s.workoutExerciseId
+                WHERE we.workoutId = w.id) AS recordCount
+        FROM workouts w LEFT JOIN routines r ON r.id = w.routineId
+        WHERE w.endedAt IS NOT NULL
+        ORDER BY w.startedAt DESC
+        """
+    )
+    fun observeHistory(): Flow<List<WorkoutHistoryRow>>
+
     @Query("SELECT * FROM workouts ORDER BY startedAt DESC")
     fun observeAll(): Flow<List<Workout>>
 
@@ -100,6 +133,33 @@ interface WorkoutDao {
 
     @Query("UPDATE workouts SET endedAt = :endedAt, updatedAt = :endedAt WHERE id = :id AND endedAt IS NULL")
     suspend fun finish(id: String, endedAt: Long)
+
+    /**
+     * The last time anything in the workout was touched: its start, a notes edit, an exercise added or
+     * changed, or a set added, edited or ticked. Null if the workout does not exist.
+     */
+    @Query(
+        """
+        SELECT MAX(t) FROM (
+            SELECT MAX(startedAt, updatedAt) AS t FROM workouts WHERE id = :workoutId
+            UNION ALL
+            SELECT updatedAt FROM workout_exercises WHERE workoutId = :workoutId
+            UNION ALL
+            SELECT MAX(s.updatedAt, COALESCE(s.completedAt, 0)) FROM workout_sets s
+                JOIN workout_exercises we ON we.id = s.workoutExerciseId
+                WHERE we.workoutId = :workoutId
+        )
+        """
+    )
+    suspend fun getLastActivity(workoutId: String): Long?
+
+    @Query(
+        """
+        SELECT COUNT(*) FROM workout_sets s JOIN workout_exercises we ON we.id = s.workoutExerciseId
+        WHERE we.workoutId = :workoutId AND s.completedAt IS NOT NULL
+        """
+    )
+    suspend fun countCompletedSets(workoutId: String): Int
 
     @Query("UPDATE workouts SET notes = :notes, updatedAt = :updatedAt WHERE id = :id")
     suspend fun updateNotes(id: String, notes: String, updatedAt: Long)
