@@ -45,12 +45,12 @@ import io.github.prithvimk.gymtracker.ui.theme.GymTrackerTheme
 
 @Composable
 fun ExercisesRoute(
+    onExerciseClick: (Exercise) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ExercisesViewModel = viewModel(factory = ExercisesViewModel.factory),
 ) {
     val filter by viewModel.filter.collectAsStateWithLifecycle()
     val list by viewModel.list.collectAsStateWithLifecycle()
-    val editor by viewModel.editor.collectAsStateWithLifecycle()
 
     ExercisesScreen(
         filter = filter,
@@ -58,22 +58,12 @@ fun ExercisesRoute(
         onQueryChange = viewModel::onQueryChange,
         onMuscleGroupSelect = viewModel::onMuscleGroupSelect,
         onShowArchivedChange = viewModel::onShowArchivedChange,
-        onExerciseClick = viewModel::onExerciseClick,
+        onExerciseClick = onExerciseClick,
         onCreateClick = viewModel::onCreateClick,
         modifier = modifier,
     )
 
-    editor?.let { state ->
-        ExerciseEditorDialog(
-            state = state,
-            onNameChange = viewModel::onEditorNameChange,
-            onMuscleGroupChange = viewModel::onEditorMuscleGroupChange,
-            onEquipmentChange = viewModel::onEditorEquipmentChange,
-            onSave = viewModel::onEditorSave,
-            onToggleArchived = viewModel::onEditorToggleArchived,
-            onDismiss = viewModel::onEditorDismiss,
-        )
-    }
+    ExerciseEditorHost(viewModel.editor)
 }
 
 @Composable

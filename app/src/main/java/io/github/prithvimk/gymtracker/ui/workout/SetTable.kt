@@ -202,7 +202,7 @@ private fun SetLabelButton(set: WorkoutSet, labelText: String, actions: SetActio
 
 /** Puts a PR badge on [content] while [types] is not empty. It pops in when the set ticked off sets a record. */
 @Composable
-private fun RecordBadgeBox(types: List<PrType>, content: @Composable () -> Unit) {
+internal fun RecordBadgeBox(types: List<PrType>, content: @Composable () -> Unit) {
     val description =
         stringResource(R.string.set_record_description, types.map { stringResource(it.badgeRes) }.joinToString())
     BadgedBox(
@@ -339,7 +339,7 @@ private fun HeaderText(text: String) {
 }
 
 @Composable
-private fun SetLabel.text(): String = when (this) {
+internal fun SetLabel.text(): String = when (this) {
     is SetLabel.Number -> value.toString()
     is SetLabel.Kind -> stringResource(type.shortRes)
 }

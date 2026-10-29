@@ -200,6 +200,26 @@
     <string name="exercises_archived_tag">Archived</string>
     <string name="exercise_subtitle">%1$s · %2$s</string>
 
+    <!-- Exercise detail screen -->
+    <string name="exercise_detail_back">Back</string>
+    <string name="exercise_detail_edit">Edit exercise</string>
+    <string name="exercise_detail_records">Personal records</string>
+    <string name="exercise_detail_no_records">No records yet. Complete a working set to set the first ones.</string>
+    <string name="exercise_detail_history">History</string>
+    <string name="exercise_detail_empty">Not logged yet. Complete a set of this exercise in a workout and it shows up here.</string>
+    <string name="exercise_detail_in_progress">In progress</string>
+    <!-- A logged set, e.g. "80 kg × 8". -->
+    <string name="exercise_detail_set">%1$s kg × %2$d</string>
+    <!-- A logged set with no weight, such as a bodyweight one. -->
+    <plurals name="exercise_detail_set_reps">
+        <item quantity="one">%d rep</item>
+        <item quantity="other">%d reps</item>
+    </plurals>
+    <!-- A set's RPE after its weight and reps, e.g. "@ 8.5". -->
+    <string name="exercise_detail_rpe">\@ %1$s</string>
+    <string name="exercise_detail_volume">Volume: %1$s kg</string>
+    <string name="exercise_detail_volume_record">Best session volume</string>
+
     <!-- Exercise editor -->
     <string name="editor_title_new">New exercise</string>
     <string name="editor_title_edit">Edit exercise</string>

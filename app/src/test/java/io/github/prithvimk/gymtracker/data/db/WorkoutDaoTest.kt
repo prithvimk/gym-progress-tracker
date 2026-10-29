@@ -104,4 +104,28 @@ class WorkoutDaoTest {
         assertNull(dao.getById("w")?.routineId)
         assertTrue(routineDao.observeExercises("push").first().isEmpty())
     }
+
+    @Test
+    fun `exercise history has completed sets of that exercise, newest workout first, with the routine name`() =
+        runTest {
+            db.exerciseDao().insert(exercise(id = "ohp"))
+            db.routineDao().upsert(routine(id = "push", name = "Push"))
+            dao.upsert(workout(id = "old", startedAt = 1L, endedAt = 2L, routineId = "push"))
+            dao.upsert(workout(id = "live", startedAt = 5L))
+            dao.upsertExercise(workoutExercise(id = "old-bench", workoutId = "old", exerciseId = "bench"))
+            dao.upsertExercise(workoutExercise(id = "old-ohp", workoutId = "old", exerciseId = "ohp", position = 1))
+            dao.upsertExercise(workoutExercise(id = "live-bench", workoutId = "live", exerciseId = "bench"))
+            dao.upsertSet(workoutSet(id = "o2", workoutExerciseId = "old-bench", position = 1, completedAt = 3L))
+            dao.upsertSet(workoutSet(id = "o1", workoutExerciseId = "old-bench", position = 0, completedAt = 3L))
+            dao.upsertSet(workoutSet(id = "press", workoutExerciseId = "old-ohp", completedAt = 3L))
+            dao.upsertSet(workoutSet(id = "l1", workoutExerciseId = "live-bench", completedAt = 6L))
+            dao.upsertSet(workoutSet(id = "todo", workoutExerciseId = "live-bench", position = 1))
+
+            val rows = dao.observeExerciseHistory("bench").first()
+
+            assertEquals(listOf("l1", "o1", "o2"), rows.map { it.set.id })
+            assertEquals(listOf("live", "old", "old"), rows.map { it.workoutId })
+            assertEquals(listOf(null, 2L, 2L), rows.map { it.workoutEndedAt })
+            assertEquals(listOf(null, "Push", "Push"), rows.map { it.routineName })
+        }
 }

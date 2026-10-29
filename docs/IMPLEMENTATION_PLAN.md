@@ -96,7 +96,7 @@ Goal: see your past work and get rewarded for beating it.
 - [ ] Month calendar with trained days highlighted
 - [x] PR detection on set completion: heaviest weight, most reps at a weight, best e1RM, best session volume (recomputed per exercise from its whole history after any set change; each session keeps only its best set per record type)
 - [x] PR badge in the logger and a short celebration on the finish summary (session volume shows only on the summary, since it moves to each newly ticked set)
-- [ ] Exercise detail screen: PR list and full history for that exercise
+- [x] Exercise detail screen: PR list and full history for that exercise (opened from the Exercises tab; editing moved behind its edit button)
 - [x] Unit tests for PR detection, including edits and deletes
 
 Done when: beating last week's top set shows a PR in the session and on the exercise screen.
