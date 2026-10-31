@@ -21,11 +21,8 @@ import io.github.prithvimk.gymtracker.domain.MAX_REST_SECONDS
 import io.github.prithvimk.gymtracker.domain.REST_STEP_SECONDS
 import io.github.prithvimk.gymtracker.domain.WorkoutSummary
 import io.github.prithvimk.gymtracker.domain.model.PrType
-import io.github.prithvimk.gymtracker.domain.model.SetType
 import io.github.prithvimk.gymtracker.timer.RestTimer
 import io.github.prithvimk.gymtracker.timer.RestTimerState
-import io.github.prithvimk.gymtracker.ui.exercises.ExerciseFilter
-import io.github.prithvimk.gymtracker.ui.exercises.filteredBy
 import java.text.NumberFormat
 import java.util.Locale
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -156,20 +153,11 @@ class WorkoutViewModel(
     private val _restEdit = MutableStateFlow<RestEdit?>(null)
     val restEdit: StateFlow<RestEdit?> = _restEdit.asStateFlow()
 
-    // The keypad's edit, or null while it is closed.
-    private val _keypad = MutableStateFlow<KeypadState?>(null)
-    val keypad: StateFlow<KeypadState?> = _keypad.asStateFlow()
-
-    private val _pendingRemoval = MutableStateFlow<PendingRemoval?>(null)
-    val pendingRemoval: StateFlow<PendingRemoval?> = _pendingRemoval.asStateFlow()
-
-    // Null while the sheet is closed. Query and selection live here so typing never waits on the database.
-    private val pickerInput = MutableStateFlow<ExercisePickerState?>(null)
-
-    val picker: StateFlow<ExercisePickerState?> =
-        combine(pickerInput, exerciseRepository.observeExercises()) { input, all ->
-            input?.copy(options = all.filteredBy(ExerciseFilter(query = input.query)))
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), null)
+    /** Exercise, set and note edits to the active workout, and the keypad. */
+    val editor =
+        SessionEditor(workoutRepository, exerciseRepository, viewModelScope) {
+            state.value as? WorkoutUiState.Active
+        }
 
     fun onStartClick() {
         viewModelScope.launch { workoutRepository.startEmptyWorkout() }
@@ -181,7 +169,7 @@ class WorkoutViewModel(
 
     fun onFinishClick() {
         val active = state.value as? WorkoutUiState.Active ?: return
-        _keypad.value = null
+        editor.close()
         restTimer.skip()
         viewModelScope.launch {
             workoutRepository.finishWorkout(active.workout.id)
@@ -200,7 +188,7 @@ class WorkoutViewModel(
                 is IdleWorkoutResult.Ended -> showSummary(result.workoutId, endedAutomatically = true)
                 IdleWorkoutResult.Discarded -> _idleDiscarded.value = true
             }
-            _keypad.value = null
+            editor.close()
             restTimer.skip()
         }
     }
@@ -253,98 +241,15 @@ class WorkoutViewModel(
 
     fun onDiscardConfirm() {
         _confirmingDiscard.value = false
-        _keypad.value = null
+        editor.close()
         restTimer.skip()
         val active = state.value as? WorkoutUiState.Active ?: return
         viewModelScope.launch { workoutRepository.deleteWorkout(active.workout.id) }
     }
 
-    fun onAddExercisesClick() {
-        pickerInput.value = ExercisePickerState()
-    }
-
-    fun onPickerQueryChange(query: String) {
-        pickerInput.update { it?.copy(query = query) }
-    }
-
-    fun onPickerToggle(exerciseId: String) {
-        pickerInput.update { it?.copy(selectedIds = it.selectedIds.toggled(exerciseId)) }
-    }
-
-    fun onPickerDismiss() {
-        pickerInput.value = null
-    }
-
-    fun onPickerConfirm() {
-        val selected = pickerInput.value?.selectedIds.orEmpty()
-        val active = state.value as? WorkoutUiState.Active
-        pickerInput.value = null
-        if (active == null || selected.isEmpty()) return
-        viewModelScope.launch { workoutRepository.addExercises(active.workout.id, selected) }
-    }
-
-    fun onMoveExercise(workoutExerciseId: String, offset: Int) {
-        val active = state.value as? WorkoutUiState.Active ?: return
-        viewModelScope.launch { workoutRepository.moveExercise(active.workout.id, workoutExerciseId, offset) }
-    }
-
-    /** Removes the exercise straight away if it has no sets; otherwise asks first. */
-    fun onRemoveExercise(workoutExerciseId: String) {
-        val active = state.value as? WorkoutUiState.Active ?: return
-        val setCount = active.sets[workoutExerciseId].orEmpty().size
-        if (setCount == 0) {
-            viewModelScope.launch { workoutRepository.deleteWorkoutExercise(workoutExerciseId) }
-        } else {
-            val name = active.exercises.firstOrNull { it.id == workoutExerciseId }?.name ?: return
-            _pendingRemoval.value = PendingRemoval(workoutExerciseId, name, setCount)
-        }
-    }
-
-    fun onRemoveConfirm() {
-        val pending = _pendingRemoval.value ?: return
-        _pendingRemoval.value = null
-        val active = state.value as? WorkoutUiState.Active
-        val removedSetIds = active?.sets?.get(pending.workoutExerciseId).orEmpty().map { it.id }
-        if (_keypad.value?.target?.setId in removedSetIds) _keypad.value = null
-        viewModelScope.launch { workoutRepository.deleteWorkoutExercise(pending.workoutExerciseId) }
-    }
-
-    fun onRemoveDismiss() {
-        _pendingRemoval.value = null
-    }
-
-    fun onWorkoutNotesChange(notes: String) {
-        val active = state.value as? WorkoutUiState.Active ?: return
-        viewModelScope.launch { workoutRepository.updateWorkoutNotes(active.workout.id, notes) }
-    }
-
-    fun onExerciseNotesChange(workoutExerciseId: String, notes: String) {
-        viewModelScope.launch { workoutRepository.updateExerciseNotes(workoutExerciseId, notes) }
-    }
-
-    fun onAddSet(workoutExerciseId: String) {
-        viewModelScope.launch { workoutRepository.addSet(workoutExerciseId) }
-    }
-
-    fun onSetWeightChange(setId: String, weightKg: Double) {
-        viewModelScope.launch { workoutRepository.updateSetWeight(setId, weightKg) }
-    }
-
-    fun onSetRepsChange(setId: String, reps: Int) {
-        viewModelScope.launch { workoutRepository.updateSetReps(setId, reps) }
-    }
-
-    fun onSetRpeChange(setId: String, rpe: Double?) {
-        viewModelScope.launch { workoutRepository.updateSetRpe(setId, rpe) }
-    }
-
-    fun onSetTypeChange(setId: String, type: SetType) {
-        viewModelScope.launch { workoutRepository.updateSetType(setId, type) }
-    }
-
     /** Ticking a set off starts the rest timer with that exercise's rest time. */
     fun onSetCompletedChange(setId: String, completed: Boolean) {
-        viewModelScope.launch { workoutRepository.setSetCompleted(setId, completed) }
+        editor.onSetCompletedChange(setId, completed)
         if (!completed) return
         val active = state.value as? WorkoutUiState.Active ?: return
         val set = active.sets.values.flatten().firstOrNull { it.id == setId } ?: return
@@ -387,58 +292,6 @@ class WorkoutViewModel(
         viewModelScope.launch { workoutRepository.updateExerciseRest(edit.workoutExerciseId, edit.seconds) }
     }
 
-    fun onDeleteSet(setId: String) {
-        if (_keypad.value?.target?.setId == setId) _keypad.value = null
-        viewModelScope.launch { workoutRepository.deleteSet(setId) }
-    }
-
-    /** Opens the keypad on a set's field, starting from what is stored. */
-    fun onFieldClick(setId: String, field: SetField) {
-        val set = activeSets().firstOrNull { it.id == setId } ?: return
-        _keypad.value = KeypadState(SetFieldRef(setId, field), set.fieldText(field))
-    }
-
-    fun onKeypadKey(key: KeypadKey) {
-        editKeypad { it.press(key) }
-    }
-
-    fun onKeypadStep(up: Boolean) {
-        editKeypad { it.stepped(up) }
-    }
-
-    /** Moves the keypad on to the next field, or closes it after the last set. */
-    fun onKeypadNext() {
-        val current = _keypad.value ?: return
-        val sets = activeSets()
-        val next = nextField(sets.map { it.id }, current.target)
-        val nextSet = next?.let { ref -> sets.firstOrNull { it.id == ref.setId } }
-        _keypad.value = if (next != null && nextSet != null) KeypadState(next, nextSet.fieldText(next.field)) else null
-    }
-
-    fun onKeypadHide() {
-        _keypad.value = null
-    }
-
-    /** Applies an edit and saves the result whenever it is a value the field accepts. */
-    private fun editKeypad(edit: (KeypadState) -> KeypadState) {
-        val current = _keypad.value ?: return
-        val next = edit(current)
-        _keypad.value = next
-        if (next.text == current.text) return
-        val setId = next.target.setId
-        when (next.field) {
-            SetField.WEIGHT -> parseWeight(next.text).ifValid { onSetWeightChange(setId, it) }
-            SetField.REPS -> parseReps(next.text).ifValid { onSetRepsChange(setId, it) }
-            SetField.RPE -> parseRpe(next.text).ifValid { onSetRpeChange(setId, it) }
-        }
-    }
-
-    /** Every set in the active workout, in the order the logger shows them. */
-    private fun activeSets(): List<WorkoutSet> {
-        val active = state.value as? WorkoutUiState.Active ?: return emptyList()
-        return active.exercises.flatMap { active.sets[it.id].orEmpty() }
-    }
-
     companion object {
         private const val STOP_TIMEOUT_MS = 5_000L
 
@@ -455,10 +308,6 @@ class WorkoutViewModel(
                 }
             }
     }
-}
-
-private inline fun <T> FieldInput<T>.ifValid(save: (T) -> Unit) {
-    if (this is FieldInput.Valid) save(value)
 }
 
 /** Adds [id] to the end, or removes it if it is already there. */

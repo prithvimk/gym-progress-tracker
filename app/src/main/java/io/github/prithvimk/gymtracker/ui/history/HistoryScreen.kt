@@ -43,26 +43,31 @@ import java.time.format.DateTimeFormatter
 
 @Composable
 fun HistoryRoute(
+    onWorkoutClick: (workoutId: String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HistoryViewModel = viewModel(factory = HistoryViewModel.factory)
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    HistoryScreen(state, modifier)
+    HistoryScreen(state, onWorkoutClick, modifier)
 }
 
 @Composable
-fun HistoryScreen(state: HistoryUiState, modifier: Modifier = Modifier) {
+fun HistoryScreen(state: HistoryUiState, onWorkoutClick: (workoutId: String) -> Unit, modifier: Modifier = Modifier) {
     when (state) {
         HistoryUiState.Loading ->
             Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
 
         is HistoryUiState.Loaded ->
-            if (state.weeks.isEmpty()) EmptyHistory(modifier) else HistoryList(state.weeks, modifier)
+            if (state.weeks.isEmpty()) EmptyHistory(modifier) else HistoryList(state.weeks, onWorkoutClick, modifier)
     }
 }
 
 @Composable
-private fun HistoryList(weeks: List<HistoryWeek>, modifier: Modifier = Modifier) {
+private fun HistoryList(
+    weeks: List<HistoryWeek>,
+    onWorkoutClick: (workoutId: String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -77,7 +82,7 @@ private fun HistoryList(weeks: List<HistoryWeek>, modifier: Modifier = Modifier)
         }
         weeks.forEach { week ->
             item(key = "week-${week.weekStart}") { WeekHeader(week) }
-            items(week.workouts, key = { it.id }) { workout -> WorkoutCard(workout) }
+            items(week.workouts, key = { it.id }) { workout -> WorkoutCard(workout, { onWorkoutClick(workout.id) }) }
         }
     }
 }
@@ -109,8 +114,8 @@ private fun WeekHeader(week: HistoryWeek) {
 }
 
 @Composable
-private fun WorkoutCard(workout: WorkoutHistoryRow) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+internal fun WorkoutCard(workout: WorkoutHistoryRow, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Card(onClick = onClick, modifier = modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
                 text = workout.routineName ?: stringResource(R.string.history_workout_untitled),
@@ -224,12 +229,15 @@ private fun HistoryPreview() {
             ),
         )
     GymTrackerTheme(dynamicColor = false) {
-        HistoryScreen(HistoryUiState.Loaded(listOf(HistoryWeek(WeekLabel.ThisWeek, LocalDate.now(), workouts))))
+        HistoryScreen(
+            HistoryUiState.Loaded(listOf(HistoryWeek(WeekLabel.ThisWeek, LocalDate.now(), workouts))),
+            onWorkoutClick = {},
+        )
     }
 }
 
 @Preview(showBackground = true)
 @Composable
 private fun EmptyHistoryPreview() {
-    GymTrackerTheme(dynamicColor = false) { HistoryScreen(HistoryUiState.Loaded(emptyList())) }
+    GymTrackerTheme(dynamicColor = false) { HistoryScreen(HistoryUiState.Loaded(emptyList()), onWorkoutClick = {}) }
 }
