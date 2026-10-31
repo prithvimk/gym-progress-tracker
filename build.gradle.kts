@@ -6,4 +6,5 @@ plugins {
     alias(libs.plugins.ktlint) apply false
     alias(libs.plugins.kotlin.serialization) apply false
     alias(libs.plugins.room) apply false
+    alias(libs.plugins.roborazzi) apply false
 }

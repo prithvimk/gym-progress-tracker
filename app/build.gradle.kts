@@ -8,6 +8,7 @@ plugins {
     alias(libs.plugins.ktlint)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.room)
+    alias(libs.plugins.roborazzi)
 }
 
 android {
@@ -90,6 +91,12 @@ room {
     schemaDirectory("$projectDir/schemas")
 }
 
+// Screenshot tests record into and compare against images committed here. Re-record after a UI change
+// with ./gradlew recordRoborazziDebug; CI runs verifyRoborazziDebug and fails on any difference.
+roborazzi {
+    outputDir.set(file("src/test/screenshots"))
+}
+
 ktlint {
     version.set("1.5.0")
     android.set(true)
@@ -114,6 +121,8 @@ dependencies {
     ksp(libs.androidx.room.compiler)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
+    // Registers the empty activity that Compose and screenshot tests host their content in.
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
@@ -121,4 +130,9 @@ dependencies {
     testImplementation(libs.androidx.test.core.ktx)
     testImplementation(libs.androidx.test.ext.junit.ktx)
     testImplementation(libs.androidx.room.testing)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
+    testImplementation(libs.roborazzi.junit.rule)
 }

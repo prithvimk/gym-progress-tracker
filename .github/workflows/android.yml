@@ -55,8 +55,9 @@ jobs:
       - name: Lint
         run: set -o pipefail; ./gradlew lintDebug 2>&1 | tee -a build-output.log
 
-      - name: Unit tests
-        run: set -o pipefail; ./gradlew testDebugUnitTest 2>&1 | tee -a build-output.log
+      # Runs every unit test, comparing screenshot tests against the images in app/src/test/screenshots.
+      - name: Unit and screenshot tests
+        run: set -o pipefail; ./gradlew verifyRoborazziDebug 2>&1 | tee -a build-output.log
 
       - name: Build debug APK
         run: set -o pipefail; ./gradlew assembleDebug 2>&1 | tee -a build-output.log
@@ -133,6 +134,7 @@ jobs:
           path: |
             app/build/reports/
             app/build/test-results/
+            app/build/outputs/roborazzi/
 
   # A closed PR's test build is no longer wanted, so its release and tag go.
   remove-pr-build:
