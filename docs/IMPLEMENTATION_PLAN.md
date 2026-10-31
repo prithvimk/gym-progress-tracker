@@ -101,6 +101,92 @@ Goal: see your past work and get rewarded for beating it.
 
 Done when: beating last week's top set shows a PR in the session and on the exercise screen.
 
+## Design pass (D1–D5, before Phase 5)
+
+Goal: one coherent look, and a logger that gives the sets the screen. These phases come from the [design review](https://claude.ai/artifact/3AGT69E2zHpuw3dgz3YeHk) of Oct 2026; finding numbers (F01–F21) refer to it. They run before Phase 5 so that Phase 5's JSON export covers the one schema change here, and its README screenshots show the final design. D1 goes first, since every later phase uses its colours, formatters and shared components; D2–D5 can then go in any order.
+
+### Design decisions
+
+Settled while planning, to keep the picks from contradicting each other:
+
+- **Record colours ignore dynamic colour.** Record gold is an app-defined extended colour family (record, onRecord, recordContainer, onRecordContainer) provided beside `MaterialTheme`, not the tertiary role, so it stays gold when Phase 5's dynamic colour toggle is on.
+- **Dynamic colour is off from D1 on.** The Settings toggle to turn it back on arrives in Phase 5, so until then every phone shows the brand scheme.
+- **One formatter for weights and durations.** Every weight on screen goes through it from D1 on, so Phase 5's kg/lb setting is a one-place change. The keypad's step labels ("+2.5 kg") read the weight increment, which becomes a setting in Phase 5.
+- **RPE opt-in is a schema change.** It is stored per library exercise (schema v3), so it ships with a migration and a migration test, and lands before Phase 5's full-fidelity export.
+- **Sparkline without a chart library.** The exercise detail's e1RM sparkline (D4) is drawn with `Canvas`; Vico comes with the full charts in v1.2.
+- **Exercise detail opens under the current tab.** It gets a second route under History, so opening it from a workout's detail keeps History selected and Back returns there.
+- **The mini bar gives way.** It hides while the keypad or the keyboard is up, and the Exercises tab's floating button moves above it.
+
+Open, with the proposal each phase assumes until decided:
+
+- **Elapsed time and rest share one top-bar chip (F04 + F06).** Most of a session is rest, so the elapsed time would rarely be visible. Proposed: the title becomes two lines, the routine name with the elapsed time under it, and the chip shows only the rest countdown.
+- **Rep range in the routine editor's summary rows (F15).** One −/+ pair can't edit a min–max range. Proposed: the collapsed row reads "3 × 6–8 · rest 3:00", and the expanded row keeps separate steppers for Sets, Reps from, Reps to and Rest.
+- **What tapping a routine row does (F09).** Today it opens the editor. Proposed: it still does, which is harmless because nothing changes until you save. The play button starts the routine, and the ⋮ menu holds Edit and Delete.
+- **One title style for all tabs (F17).** The picked drafts mix large in-content titles (Workout, Exercises) with a small top bar (History). Proposed: a large title that collapses into a small top bar as the list scrolls, with actions on the right (History's calendar toggle) and Exercises' search bar under its title.
+- **Reordering (F15).** The routine editor gets drag handles, while the logger still uses Move up / Move down. Proposed: add a small Compose drag-and-drop list library, use it in the routine editor, and give the logger a "Reorder exercises" entry in its menu that opens the same compact draggable list.
+- **Display face for big numbers (F03).** The app is offline, so a font must be bundled. Proposed: Roboto with tabular figures for now; revisit a condensed face (about 100 KB) after D2.
+
+## Phase D1: Design foundations
+
+Goal: the whole app in one green scheme, with records in gold and numbers that read unambiguously.
+
+- [ ] Full light and dark colour schemes generated from `#2E6B30`, defining every role including all surface containers; `dynamicColor` defaults to off (F01)
+- [ ] Record colour family as an extended colour; every PR mark (logger badge, History card, exercise detail, records card) moves off tertiary to gold (F02)
+- [ ] Shared formatter: finished durations in words ("58 min", "1 h 11 min"), clock format only for live timers; every weight goes through it (F03)
+- [ ] Tabular figures for timers, set fields, the Last column and totals (F03)
+- [ ] Shared components the later phases reuse: stat tile, gold record chip, gold number disc
+
+Done when: no lavender, purple or pink is left on any screen in light or dark, and History shows "58 min" instead of "58:00".
+
+## Phase D2: Workout logger
+
+Goal: during a session the set table gets the screen, and the rest timer stays out of the way.
+
+- [ ] Compact top bar: routine name and elapsed time, a filled Finish button, and a menu with Workout notes, Add exercises and Discard; the bottom footer goes away (F04)
+- [ ] Quiet set table: borderless filled fields, done rows with a light tint, and a filled done check with a 48 dp touch target (F05)
+- [ ] PR mark: the set number sits on a gold disc in its usual place, read out as "Set 1, personal record" (F21)
+- [ ] RPE column opt-in per exercise from its ⋮ menu, shown anyway when any set already has RPE (schema v3, migration and migration test) (F05)
+- [ ] Rest countdown as a top-bar chip with an emptying ring, replacing the rest bar; tap for −15 / +15 / Skip; pulses in the last 10 seconds (F06)
+- [ ] Keypad context line ("Bench press · Set 3 · Reps", last time on the right) with the hide button in it; step keys show their unit; "." greyed out for reps (F07)
+- [ ] The workout detail's editor picks all of this up (it shares the logger's editor) but keeps its own top bar and Done button
+
+Done when: on a Pixel 7, with the keypad open and a rest running, at least four set rows are visible.
+
+## Phase D3: Start and finish
+
+Goal: one tap to the right session, and a finish screen that shows progress.
+
+- [ ] Workout tab: "Up next" card for the routine done least recently (never-done routines first, then routine order) with a Start button (F09)
+- [ ] Routine rows with exercise count, last done, and typical duration (the average of past sessions, hidden until there is one), a play button and a ⋮ menu; "Start an empty workout" becomes a text button (F09)
+- [ ] Full-screen finish summary: duration, volume and set tiles; the gold records card with its pop-in; Done as the main button and Save as routine as the secondary one; the note when the app ended an idle workout (F08)
+- [ ] "Compared with last time" on the summary: volume change and each exercise's top set against the previous session of the same routine, hidden for empty workouts (F08)
+
+Done when: finishing a routine shows its volume change against the last time you did it.
+
+## Phase D4: History and exercises
+
+Goal: past work and progress read at a glance.
+
+- [ ] History cards: date line with a gold PR chip, routine name, one row of stats, and the first few exercises; the List / Calendar switch becomes a top-bar icon (F10)
+- [ ] Calendar: trained days tinted in three steps by volume (thirds of the month's highest), selected day filled, today always ringed (F11)
+- [ ] Workout detail: stat tiles, Delete moves to the menu, undone sets collapse to one line, exercise names open their detail (F12)
+- [ ] Exercises: Material 3 search bar, muscle chips plus an Equipment chip, and each trained exercise's last top set and when; no monogram avatars (F13)
+- [ ] Exercise detail: e1RM hero with its 30-day change and a sparkline, records as a 2×2 grid of tiles with dates, then history (F14)
+- [ ] Exercise picker: chips with Recent first, numbered picks in tick order, and a tray of picks above the Add button (F16)
+
+Done when: the Exercises list shows your last top set for every exercise you've trained.
+
+## Phase D5: Routines and app frame
+
+Goal: routines read like a written program, and a running workout is never out of sight.
+
+- [ ] Routine editor: one summary line per exercise ("3 × 6–8 · rest 3:00"), one expanded at a time, drag to reorder, Delete in the menu (F15)
+- [ ] Mini bar above the navigation bar on every other tab while a workout runs: routine, elapsed time, rest countdown, tap to resume (F17)
+- [ ] Tab icons: dumbbell, history, list, sliders (vectors copied into `res/drawable`, not the extended icon library) (F17)
+- [ ] One title style on all four tabs (F17)
+
+Done when: you can check an exercise's history mid-session and see the rest countdown the whole time.
+
 ## Phase 5: Export, backup and v1.0 release
 
 Goal: your data is safe and the app is releasable.
@@ -108,10 +194,12 @@ Goal: your data is safe and the app is releasable.
 - [ ] Export all data to JSON (full fidelity) and CSV (one row per set, Strong/Hevy style) via the system file picker
 - [ ] Import from the app's own JSON, with a preview and replace-or-merge choice
 - [ ] Android Auto Backup rules that include the database
-- [ ] Settings: units, default rest time, default weight increment, export/import, app version
-- [ ] App icon, empty states, dark theme check
+- [ ] Settings as a grouped list (F19): Appearance (theme: system, light or dark; dynamic colour toggle), Workout (units, default rest time, default weight increment), Your data (export, import, backup status), About (app version; the debug build's update card moves here). Stored with DataStore
+- [ ] App icon
+- [ ] Empty states with an icon, a line saying what will appear, and an action: History offers to start a workout, the Workout tab offers a new routine (F18)
+- [ ] Dark theme and accessibility check (F20): the set table at 200% font size, no state shown by colour alone, animations respect the system's remove-animations setting, contrast of both schemes, TalkBack reading order in a set row
 - [ ] Release signing via GitHub Actions secrets; tag `v1.0.0` publishes a signed APK to GitHub Releases
-- [ ] README with screenshots and install steps
+- [ ] README with screenshots (taken after the design pass) and install steps
 
 Done when: you can uninstall, reinstall, import the export file, and all history is back.
 
@@ -120,8 +208,8 @@ Done when: you can uninstall, reinstall, import the export file, and all history
 These come from the Should-have list and are tracked as separate milestones:
 
 - v1.1: progression suggestions (double progression with a configurable increment)
-- v1.2: per-exercise charts (e1RM, top set, volume) and weekly volume per muscle group
-- v1.3: weekly session target with week-based streaks, training-day reminders, calendar heatmap
+- v1.2: per-exercise charts (e1RM, top set, volume) and weekly volume per muscle group (growing out of D4's e1RM sparkline)
+- v1.3: weekly session target with week-based streaks, training-day reminders, and a year heatmap (D4 already tints the month calendar by volume)
 - v1.4: plate calculator, supersets, warm-up set generator
 
 ## Working agreement
