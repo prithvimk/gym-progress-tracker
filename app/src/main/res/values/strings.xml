@@ -48,7 +48,6 @@
     <string name="workout_summary_exercises">Exercises</string>
     <string name="workout_summary_sets">Sets</string>
     <string name="workout_summary_volume">Volume</string>
-    <string name="workout_summary_volume_value">%1$s kg</string>
     <string name="workout_summary_no_sets">No sets were marked done, so nothing counts towards volume.</string>
     <string name="workout_summary_done">Done</string>
     <string name="workout_summary_ended_automatically">Ended automatically after 3 hours without activity. It ends at your last activity, so the duration leaves out the idle time.</string>
@@ -65,14 +64,14 @@
     <!-- A past week's header, e.g. "Week of 13 Oct". -->
     <string name="history_week_of">Week of %1$s</string>
     <!-- After a week's header, e.g. "3 workouts · 12,340 kg". -->
-    <string name="history_week_totals">%1$s · %2$s kg</string>
+    <string name="history_week_totals">%1$s · %2$s</string>
     <plurals name="history_week_workouts">
         <item quantity="one">%d workout</item>
         <item quantity="other">%d workouts</item>
     </plurals>
     <!-- Title of a history card for a workout not started from a routine. -->
     <string name="history_workout_untitled">Workout</string>
-    <!-- A history card's numbers, e.g. "1:02:15 · 18 sets · 8,420 kg". -->
+    <!-- A history card's numbers, e.g. "1 h 2 min · 18 sets · 8,420 kg". -->
     <string name="history_workout_stats">%1$s · %2$s · %3$s</string>
     <plurals name="history_workout_sets">
         <item quantity="one">%d set</item>
@@ -106,10 +105,11 @@
         <item quantity="one">%d set not done</item>
         <item quantity="other">%d sets not done</item>
     </plurals>
-    <string name="record_weight">Heaviest weight: %1$s kg</string>
-    <string name="record_reps_at_weight">Most reps at %1$s kg: %2$d</string>
-    <string name="record_e1rm">Best estimated 1RM: %1$s kg</string>
-    <string name="record_volume">Best session volume: %1$s kg</string>
+    <!-- The %1$s in record and set texts is a weight with its unit, e.g. "82.5 kg". -->
+    <string name="record_weight">Heaviest weight: %1$s</string>
+    <string name="record_reps_at_weight">Most reps at %1$s: %2$d</string>
+    <string name="record_e1rm">Best estimated 1RM: %1$s</string>
+    <string name="record_volume">Best session volume: %1$s</string>
     <string name="workout_discard_title">Discard this workout?</string>
     <string name="workout_discard_body">Everything logged in this workout will be deleted.</string>
     <string name="workout_discard_confirm">Discard</string>
@@ -233,7 +233,7 @@
     <string name="exercise_detail_empty">Not logged yet. Complete a set of this exercise in a workout and it shows up here.</string>
     <string name="exercise_detail_in_progress">In progress</string>
     <!-- A logged set, e.g. "80 kg × 8". -->
-    <string name="exercise_detail_set">%1$s kg × %2$d</string>
+    <string name="exercise_detail_set">%1$s × %2$d</string>
     <!-- A logged set with no weight, such as a bodyweight one. -->
     <plurals name="exercise_detail_set_reps">
         <item quantity="one">%d rep</item>
@@ -241,7 +241,7 @@
     </plurals>
     <!-- A set's RPE after its weight and reps, e.g. "@ 8.5". -->
     <string name="exercise_detail_rpe">\@ %1$s</string>
-    <string name="exercise_detail_volume">Volume: %1$s kg</string>
+    <string name="exercise_detail_volume">Volume: %1$s</string>
     <string name="exercise_detail_volume_record">Best session volume</string>
 
     <!-- Exercise editor -->
@@ -284,4 +284,10 @@
     <string name="equipment_kettlebell">Kettlebell</string>
     <string name="equipment_band">Band</string>
     <string name="equipment_other">Other</string>
+    <!-- A weight or volume with its unit, e.g. "82.5 kg". -->
+    <string name="weight_value">%1$s kg</string>
+    <!-- A finished duration in words. -->
+    <string name="duration_minutes">%1$d min</string>
+    <string name="duration_hours">%1$d h</string>
+    <string name="duration_hours_minutes">%1$d h %2$d min</string>
 </resources>

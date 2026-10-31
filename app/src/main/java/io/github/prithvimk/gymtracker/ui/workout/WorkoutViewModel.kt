@@ -23,8 +23,6 @@ import io.github.prithvimk.gymtracker.domain.WorkoutSummary
 import io.github.prithvimk.gymtracker.domain.model.PrType
 import io.github.prithvimk.gymtracker.timer.RestTimer
 import io.github.prithvimk.gymtracker.timer.RestTimerState
-import java.text.NumberFormat
-import java.util.Locale
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -312,20 +310,3 @@ class WorkoutViewModel(
 
 /** Adds [id] to the end, or removes it if it is already there. */
 fun List<String>.toggled(id: String): List<String> = if (id in this) this - id else this + id
-
-/** Formats elapsed time as "m:ss", or "h:mm:ss" from one hour. Negative input counts as zero. */
-fun formatElapsed(millis: Long): String {
-    val totalSeconds = millis.coerceAtLeast(0L) / 1_000L
-    val hours = totalSeconds / 3_600L
-    val minutes = totalSeconds % 3_600L / 60L
-    val seconds = totalSeconds % 60L
-    return if (hours > 0) {
-        String.format(Locale.ROOT, "%d:%02d:%02d", hours, minutes, seconds)
-    } else {
-        String.format(Locale.ROOT, "%d:%02d", minutes, seconds)
-    }
-}
-
-/** Formats volume in kg with grouping and at most one decimal, e.g. "12,345.5". */
-fun formatVolume(volumeKg: Double, locale: Locale = Locale.getDefault()): String =
-    NumberFormat.getNumberInstance(locale).apply { maximumFractionDigits = 1 }.format(volumeKg)

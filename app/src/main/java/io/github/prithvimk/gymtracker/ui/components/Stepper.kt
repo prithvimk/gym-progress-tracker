@@ -17,7 +17,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.prithvimk.gymtracker.R
-import io.github.prithvimk.gymtracker.ui.workout.formatElapsed
+import io.github.prithvimk.gymtracker.ui.format.formatClock
 
 /** A label with its value between − and + buttons. */
 @Composable
@@ -56,7 +56,7 @@ fun Stepper(
 /** A rest time as "2:00", or "Off" for none. */
 @Composable
 fun restText(seconds: Int): String =
-    if (seconds <= 0) stringResource(R.string.rest_off) else formatElapsed(seconds * MILLIS_PER_SECOND)
+    if (seconds <= 0) stringResource(R.string.rest_off) else formatClock(seconds * MILLIS_PER_SECOND)
 
 private val VALUE_MIN_WIDTH = 56.dp
 private const val MILLIS_PER_SECOND = 1_000L

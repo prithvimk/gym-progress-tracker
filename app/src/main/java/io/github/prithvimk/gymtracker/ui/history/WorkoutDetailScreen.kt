@@ -43,13 +43,13 @@ import io.github.prithvimk.gymtracker.R
 import io.github.prithvimk.gymtracker.domain.WorkoutSummary
 import io.github.prithvimk.gymtracker.ui.exercises.HistorySetRow
 import io.github.prithvimk.gymtracker.ui.exercises.labelRes
+import io.github.prithvimk.gymtracker.ui.format.durationText
+import io.github.prithvimk.gymtracker.ui.format.volumeText
 import io.github.prithvimk.gymtracker.ui.workout.KeypadState
 import io.github.prithvimk.gymtracker.ui.workout.RecordsCelebration
 import io.github.prithvimk.gymtracker.ui.workout.SessionEditActions
 import io.github.prithvimk.gymtracker.ui.workout.SessionEditorContent
 import io.github.prithvimk.gymtracker.ui.workout.SessionEditorDialogs
-import io.github.prithvimk.gymtracker.ui.workout.formatElapsed
-import io.github.prithvimk.gymtracker.ui.workout.formatVolume
 
 /** A finished workout, opened from History. */
 @Composable
@@ -245,13 +245,13 @@ private fun DoneExerciseCard(exercise: DoneExercise, notDone: Int) {
     }
 }
 
-/** "1:02:15 · 18 sets · 8,420 kg", the same as the workout's card in History. */
+/** "1 h 2 min · 18 sets · 8,420 kg", the same as the workout's card in History. */
 @Composable
 private fun statsText(summary: WorkoutSummary): String = stringResource(
     R.string.history_workout_stats,
-    formatElapsed(summary.durationMillis),
+    durationText(summary.durationMillis),
     pluralStringResource(R.plurals.history_workout_sets, summary.setCount, summary.setCount),
-    stringResource(R.string.workout_summary_volume_value, formatVolume(summary.volumeKg)),
+    volumeText(summary.volumeKg),
 )
 
 @Composable

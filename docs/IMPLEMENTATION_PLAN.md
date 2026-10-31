@@ -128,11 +128,11 @@ Settled while planning, to keep the picks from contradicting each other:
 
 Goal: the whole app in one green scheme, with records in gold and numbers that read unambiguously.
 
-- [ ] Full light and dark colour schemes generated from `#2E6B30`, defining every role including all surface containers; `dynamicColor` defaults to off (F01)
-- [ ] Record colour family as an extended colour; every PR mark (logger badge, History card, exercise detail, records card) moves off tertiary to gold (F02)
-- [ ] Shared formatter: finished durations in words ("58 min", "1 h 11 min"), clock format only for live timers; every weight goes through it (F03)
-- [ ] Tabular figures for timers, set fields, the Last column and totals (F03)
-- [ ] Shared components the later phases reuse: stat tile, gold record chip, gold number disc
+- [x] Full light and dark colour schemes generated from `#2E6B30`, defining every role including all surface containers; `dynamicColor` defaults to off (F01) (Theme Builder tonal mapping, primary pinned to the brand colour)
+- [x] Record colour family as an extended colour; every PR mark (logger badge, History card, exercise detail, records card) moves off tertiary to gold (F02) (`MaterialTheme.recordColors`; the calendar's selected-day ring moved off tertiary too)
+- [x] Shared formatter: finished durations in words ("58 min", "1 h 11 min"), clock format only for live timers; every weight goes through it (F03) (`ui/format`; durations round to the nearest minute, and set fields still edit raw kg until Phase 5's unit setting)
+- [x] Tabular figures for timers, set fields, the Last column and totals (F03)
+- [x] Shared components the later phases reuse: stat tile, gold record chip, gold number disc (`ui/components/RecordMarks.kt`; the chip is on History cards already)
 
 Done when: no lavender, purple or pink is left on any screen in light or dark, and History shows "58 min" instead of "58:00".
 

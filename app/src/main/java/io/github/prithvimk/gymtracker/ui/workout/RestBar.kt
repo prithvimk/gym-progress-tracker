@@ -25,7 +25,9 @@ import androidx.compose.ui.unit.dp
 import io.github.prithvimk.gymtracker.R
 import io.github.prithvimk.gymtracker.timer.RestTimer
 import io.github.prithvimk.gymtracker.timer.RestTimerState
+import io.github.prithvimk.gymtracker.ui.format.formatClock
 import io.github.prithvimk.gymtracker.ui.theme.GymTrackerTheme
+import io.github.prithvimk.gymtracker.ui.theme.tabular
 import kotlinx.coroutines.delay
 
 /** Rest timer controls. [onAdjust] takes seconds to add, negative to take off. */
@@ -53,8 +55,8 @@ fun RestBar(rest: RestTimerState, actions: RestActions, modifier: Modifier = Mod
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         // Rounded up, so it reads 0:01 until it is really over.
-                        text = formatElapsed(remaining + TICK_MS - 1L),
-                        style = MaterialTheme.typography.headlineSmall,
+                        text = formatClock(remaining + TICK_MS - 1L),
+                        style = MaterialTheme.typography.headlineSmall.tabular(),
                         color = MaterialTheme.colorScheme.onSecondaryContainer,
                     )
                     Text(

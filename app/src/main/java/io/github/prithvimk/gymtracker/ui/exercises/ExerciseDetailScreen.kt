@@ -47,13 +47,15 @@ import io.github.prithvimk.gymtracker.domain.model.Equipment
 import io.github.prithvimk.gymtracker.domain.model.MuscleGroup
 import io.github.prithvimk.gymtracker.domain.model.PrType
 import io.github.prithvimk.gymtracker.domain.model.SetType
+import io.github.prithvimk.gymtracker.ui.format.volumeText
+import io.github.prithvimk.gymtracker.ui.format.weightText
 import io.github.prithvimk.gymtracker.ui.history.formatDate
 import io.github.prithvimk.gymtracker.ui.history.formatStartTime
 import io.github.prithvimk.gymtracker.ui.theme.GymTrackerTheme
+import io.github.prithvimk.gymtracker.ui.theme.recordColors
 import io.github.prithvimk.gymtracker.ui.workout.RecordBadge
 import io.github.prithvimk.gymtracker.ui.workout.SetLabel
 import io.github.prithvimk.gymtracker.ui.workout.formatSetNumber
-import io.github.prithvimk.gymtracker.ui.workout.formatVolume
 import io.github.prithvimk.gymtracker.ui.workout.recordText
 import io.github.prithvimk.gymtracker.ui.workout.text
 import java.time.Instant
@@ -189,7 +191,7 @@ private fun RecordsCard(records: List<RecordBest>) {
                     Icon(
                         painter = painterResource(R.drawable.ic_trophy),
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.tertiary,
+                        tint = MaterialTheme.recordColors.record,
                         modifier = Modifier.size(18.dp),
                     )
                     Text(
@@ -226,12 +228,12 @@ private fun SessionCard(session: HistorySession) {
                 session.sets.forEach { HistorySetRow(it) }
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                MutedText(stringResource(R.string.exercise_detail_volume, formatVolume(session.volumeKg)))
+                MutedText(stringResource(R.string.exercise_detail_volume, volumeText(session.volumeKg)))
                 if (session.volumeRecord) {
                     Icon(
                         painter = painterResource(R.drawable.ic_trophy),
                         contentDescription = stringResource(R.string.exercise_detail_volume_record),
-                        tint = MaterialTheme.colorScheme.tertiary,
+                        tint = MaterialTheme.recordColors.record,
                         modifier = Modifier.padding(start = 6.dp).size(16.dp),
                     )
                 }
@@ -254,7 +256,7 @@ internal fun HistorySetRow(historySet: HistorySet, modifier: Modifier = Modifier
         Text(
             text =
             if (set.weightKg > 0) {
-                stringResource(R.string.exercise_detail_set, formatSetNumber(set.weightKg), set.reps)
+                stringResource(R.string.exercise_detail_set, weightText(set.weightKg), set.reps)
             } else {
                 pluralStringResource(R.plurals.exercise_detail_set_reps, set.reps, set.reps)
             },
