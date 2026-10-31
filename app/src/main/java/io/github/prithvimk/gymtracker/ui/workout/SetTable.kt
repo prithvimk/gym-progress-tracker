@@ -60,6 +60,9 @@ import io.github.prithvimk.gymtracker.data.db.entity.WorkoutSet
 import io.github.prithvimk.gymtracker.domain.matchPrevious
 import io.github.prithvimk.gymtracker.domain.model.PrType
 import io.github.prithvimk.gymtracker.domain.model.SetType
+import io.github.prithvimk.gymtracker.ui.format.weightNumberText
+import io.github.prithvimk.gymtracker.ui.theme.recordColors
+import io.github.prithvimk.gymtracker.ui.theme.tabular
 
 /** Set edits from the logger. Every callback takes the set's id. */
 @Immutable
@@ -175,7 +178,7 @@ private fun SetLabelButton(set: WorkoutSet, labelText: String, actions: SetActio
             contentPadding = PaddingValues(0.dp),
             modifier = Modifier.semantics { contentDescription = description },
         ) {
-            Text(labelText, style = MaterialTheme.typography.titleMedium)
+            Text(labelText, style = MaterialTheme.typography.titleMedium.tabular())
         }
         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
             SetType.entries.forEach { type ->
@@ -224,8 +227,8 @@ internal fun RecordBadge(types: List<PrType>, modifier: Modifier = Modifier) {
     val description =
         stringResource(R.string.set_record_description, types.map { stringResource(it.badgeRes) }.joinToString())
     Badge(
-        containerColor = MaterialTheme.colorScheme.tertiary,
-        contentColor = MaterialTheme.colorScheme.onTertiary,
+        containerColor = MaterialTheme.recordColors.record,
+        contentColor = MaterialTheme.recordColors.onRecord,
         modifier = modifier.semantics { contentDescription = description },
     ) {
         Text(stringResource(R.string.set_record_badge))
@@ -280,7 +283,7 @@ private fun SetValueField(
     ) {
         Text(
             text = text,
-            style = MaterialTheme.typography.bodyLarge,
+            style = MaterialTheme.typography.bodyLarge.tabular(),
             color = colors.onSurface,
             textAlign = TextAlign.Center,
             maxLines = 1,
@@ -324,11 +327,11 @@ private fun SetRowLayout(
 @Composable
 private fun LastTimeText(lastTime: WorkoutSet?) {
     val text =
-        lastTime?.let { stringResource(R.string.set_last_value, formatSetNumber(it.weightKg).ifEmpty { "0" }, it.reps) }
+        lastTime?.let { stringResource(R.string.set_last_value, weightNumberText(it.weightKg), it.reps) }
             ?: stringResource(R.string.set_last_none)
     Text(
         text = text,
-        style = MaterialTheme.typography.bodySmall,
+        style = MaterialTheme.typography.bodySmall.tabular(),
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         textAlign = TextAlign.Center,
         maxLines = 2,

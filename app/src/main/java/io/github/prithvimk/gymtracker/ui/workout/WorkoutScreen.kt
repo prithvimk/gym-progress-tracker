@@ -92,7 +92,13 @@ import io.github.prithvimk.gymtracker.timer.RestTimerState
 import io.github.prithvimk.gymtracker.ui.components.Stepper
 import io.github.prithvimk.gymtracker.ui.components.restText
 import io.github.prithvimk.gymtracker.ui.exercises.labelRes
+import io.github.prithvimk.gymtracker.ui.format.durationText
+import io.github.prithvimk.gymtracker.ui.format.formatClock
+import io.github.prithvimk.gymtracker.ui.format.volumeText
+import io.github.prithvimk.gymtracker.ui.format.weightText
 import io.github.prithvimk.gymtracker.ui.theme.GymTrackerTheme
+import io.github.prithvimk.gymtracker.ui.theme.recordColors
+import io.github.prithvimk.gymtracker.ui.theme.tabular
 import kotlinx.coroutines.delay
 
 /** The Workout tab. [onEditRoutine] opens the routine editor on a routine, or on a new one for null. */
@@ -293,12 +299,12 @@ private fun WorkoutSummaryDialog(
                     )
                 }
                 if (records.isNotEmpty()) RecordsCelebration(records)
-                SummaryRow(stringResource(R.string.workout_summary_duration), formatElapsed(summary.durationMillis))
+                SummaryRow(stringResource(R.string.workout_summary_duration), durationText(summary.durationMillis))
                 SummaryRow(stringResource(R.string.workout_summary_exercises), summary.exerciseCount.toString())
                 SummaryRow(stringResource(R.string.workout_summary_sets), summary.setCount.toString())
                 SummaryRow(
                     stringResource(R.string.workout_summary_volume),
-                    stringResource(R.string.workout_summary_volume_value, formatVolume(summary.volumeKg)),
+                    volumeText(summary.volumeKg),
                 )
                 if (summary.setCount == 0) {
                     Text(
@@ -339,22 +345,21 @@ internal fun RecordsCelebration(
         modifier = modifier
             .fillMaxWidth()
             .padding(bottom = 8.dp)
-            .background(MaterialTheme.colorScheme.tertiaryContainer, RoundedCornerShape(12.dp))
+            .background(MaterialTheme.recordColors.recordContainer, RoundedCornerShape(12.dp))
             .padding(12.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
                 painter = painterResource(R.drawable.ic_trophy),
                 contentDescription = null,
-                // The container's own content colour, like the text beside it. Plain tertiary is made for
-                // surfaces, and on some phones' dynamic dark schemes the container is light enough to hide it.
-                tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                // The container's own content colour, like the text beside it, so it reads in both themes.
+                tint = MaterialTheme.recordColors.onRecordContainer,
                 modifier = Modifier.size(32.dp).scale(trophyScale.value),
             )
             Text(
                 text = pluralStringResource(R.plurals.workout_summary_records, count, count),
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                color = MaterialTheme.recordColors.onRecordContainer,
                 modifier = Modifier.padding(start = 12.dp),
             )
         }
@@ -363,13 +368,13 @@ internal fun RecordsCelebration(
                 Text(
                     text = exercise.exerciseName,
                     style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onTertiaryContainer,
+                    color = MaterialTheme.recordColors.onRecordContainer,
                 )
                 exercise.records.forEach { record ->
                     Text(
                         text = recordText(record.type, record.value, record.weightKg, record.reps),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onTertiaryContainer,
+                        color = MaterialTheme.recordColors.onRecordContainer,
                     )
                 }
             }
@@ -380,11 +385,10 @@ internal fun RecordsCelebration(
 /** A record in words, e.g. "Most reps at 80 kg: 9". [weightKg] and [reps] are the set holding it. */
 @Composable
 internal fun recordText(type: PrType, value: Double, weightKg: Double, reps: Int): String = when (type) {
-    PrType.WEIGHT -> stringResource(R.string.record_weight, formatSetNumber(value))
-    PrType.REPS_AT_WEIGHT ->
-        stringResource(R.string.record_reps_at_weight, formatSetNumber(weightKg).ifEmpty { "0" }, reps)
-    PrType.E1RM -> stringResource(R.string.record_e1rm, formatVolume(value))
-    PrType.VOLUME -> stringResource(R.string.record_volume, formatVolume(value))
+    PrType.WEIGHT -> stringResource(R.string.record_weight, weightText(value))
+    PrType.REPS_AT_WEIGHT -> stringResource(R.string.record_reps_at_weight, weightText(weightKg), reps)
+    PrType.E1RM -> stringResource(R.string.record_e1rm, volumeText(value))
+    PrType.VOLUME -> stringResource(R.string.record_volume, volumeText(value))
 }
 
 @Composable
@@ -430,7 +434,7 @@ private fun SaveRoutineDialog(
 private fun SummaryRow(label: String, value: String) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
         Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-        Text(value, style = MaterialTheme.typography.titleMedium)
+        Text(value, style = MaterialTheme.typography.titleMedium.tabular())
     }
 }
 
@@ -640,8 +644,8 @@ private fun ActiveContent(
                 style = MaterialTheme.typography.headlineMedium,
             )
             Text(
-                text = formatElapsed(elapsed),
-                style = MaterialTheme.typography.displaySmall,
+                text = formatClock(elapsed),
+                style = MaterialTheme.typography.displaySmall.tabular(),
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(top = 4.dp),
             )

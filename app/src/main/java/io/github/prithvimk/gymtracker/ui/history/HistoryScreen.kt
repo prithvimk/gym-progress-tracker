@@ -37,7 +37,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -51,9 +50,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.prithvimk.gymtracker.R
 import io.github.prithvimk.gymtracker.data.db.dao.WorkoutHistoryRow
+import io.github.prithvimk.gymtracker.ui.components.RecordChip
+import io.github.prithvimk.gymtracker.ui.format.durationText
+import io.github.prithvimk.gymtracker.ui.format.volumeText
 import io.github.prithvimk.gymtracker.ui.theme.GymTrackerTheme
-import io.github.prithvimk.gymtracker.ui.workout.formatElapsed
-import io.github.prithvimk.gymtracker.ui.workout.formatVolume
+import io.github.prithvimk.gymtracker.ui.theme.tabular
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -250,7 +251,7 @@ private fun DayCell(day: LocalDate, count: Int, isToday: Boolean, selected: Bool
         modifier = Modifier
             .padding(3.dp)
             .fillMaxSize()
-            .then(if (selected) Modifier.border(2.dp, colors.tertiary, CircleShape) else Modifier)
+            .then(if (selected) Modifier.border(2.dp, colors.onSurface, CircleShape) else Modifier)
             .padding(if (selected) 3.dp else 0.dp)
             .clip(CircleShape)
             .then(if (trained) Modifier.background(colors.primary) else Modifier)
@@ -292,9 +293,9 @@ private fun MonthListHeader(calendar: HistoryMonth) {
                 stringResource(
                     R.string.history_week_totals,
                     pluralStringResource(R.plurals.history_week_workouts, listed.size, listed.size),
-                    formatVolume(listed.sumOf { it.volumeKg }),
+                    volumeText(listed.sumOf { it.volumeKg }),
                 ),
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodyMedium.tabular(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
@@ -321,9 +322,9 @@ private fun WeekHeader(week: HistoryWeek) {
             stringResource(
                 R.string.history_week_totals,
                 pluralStringResource(R.plurals.history_week_workouts, count, count),
-                formatVolume(week.volumeKg),
+                volumeText(week.volumeKg),
             ),
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.bodyMedium.tabular(),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
@@ -346,31 +347,21 @@ internal fun WorkoutCard(workout: WorkoutHistoryRow, onClick: () -> Unit, modifi
                 text =
                 stringResource(
                     R.string.history_workout_stats,
-                    formatElapsed(workout.endedAt - workout.startedAt),
+                    durationText(workout.endedAt - workout.startedAt),
                     pluralStringResource(R.plurals.history_workout_sets, workout.setCount, workout.setCount),
-                    stringResource(R.string.workout_summary_volume_value, formatVolume(workout.volumeKg)),
+                    volumeText(workout.volumeKg),
                 ),
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodyMedium.tabular(),
             )
             if (workout.recordCount > 0) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_trophy),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.tertiary,
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Text(
-                        text = pluralStringResource(
-                            R.plurals.history_workout_records,
-                            workout.recordCount,
-                            workout.recordCount
-                        ),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.tertiary,
-                        modifier = Modifier.padding(start = 6.dp),
-                    )
-                }
+                RecordChip(
+                    text = pluralStringResource(
+                        R.plurals.history_workout_records,
+                        workout.recordCount,
+                        workout.recordCount
+                    ),
+                    modifier = Modifier.padding(top = 4.dp),
+                )
             }
         }
     }
