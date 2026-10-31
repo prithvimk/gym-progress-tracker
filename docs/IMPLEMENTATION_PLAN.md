@@ -11,7 +11,7 @@ v1 is a fully offline Android app that logs workouts, shows what you lifted last
 | Storage | Room (SQLite), KSP for codegen |
 | DI | Manual `AppContainer` (swap for Hilt later only if it gets painful) |
 | Background | `kotlinx.coroutines`, a foreground service for the rest timer |
-| Charts (v1.5) | Vico |
+| Charts (v1.2) | Vico |
 | Build | Gradle Kotlin DSL with a version catalog (`libs.versions.toml`) |
 | CI | GitHub Actions: lint, unit tests, debug APK on every push |
 | Min / target SDK | 26 (Android 8.0) / latest stable |
@@ -116,15 +116,15 @@ Settled while planning, to keep the picks from contradicting each other:
 - **Sparkline without a chart library.** The exercise detail's e1RM sparkline (D4) is drawn with `Canvas`; Vico comes with the full charts in v1.2.
 - **Exercise detail opens under the current tab.** It gets a second route under History, so opening it from a workout's detail keeps History selected and Back returns there.
 - **The mini bar gives way.** It hides while the keypad or the keyboard is up, and the Exercises tab's floating button moves above it.
+- **Rep range in the routine editor (F15).** The collapsed row reads "3 × 6–8 · rest 3:00"; expanding it shows separate steppers for Sets, Reps from, Reps to and Rest.
+- **Tapping a routine row opens the editor (F09),** as today; nothing changes until you save. The play button starts the routine, and the ⋮ menu holds Edit and Delete.
+- **One title style on all tabs (F17):** a large title that collapses into a small top bar as the list scrolls, with actions on the right (History's calendar toggle) and Exercises' search bar under its title.
+- **Reordering is drag and drop everywhere (F15).** A small Compose drag-and-drop list library powers the routine editor, and the logger gets a "Reorder exercises" menu entry that opens the same compact draggable list.
+- **Roboto with tabular figures (F03).** No bundled display face for now; revisit a condensed one (about 100 KB) after D2.
 
-Open, with the proposal each phase assumes until decided:
+Open:
 
-- **Elapsed time and rest share one top-bar chip (F04 + F06).** Most of a session is rest, so the elapsed time would rarely be visible. Proposed: the title becomes two lines, the routine name with the elapsed time under it, and the chip shows only the rest countdown.
-- **Rep range in the routine editor's summary rows (F15).** One −/+ pair can't edit a min–max range. Proposed: the collapsed row reads "3 × 6–8 · rest 3:00", and the expanded row keeps separate steppers for Sets, Reps from, Reps to and Rest.
-- **What tapping a routine row does (F09).** Today it opens the editor. Proposed: it still does, which is harmless because nothing changes until you save. The play button starts the routine, and the ⋮ menu holds Edit and Delete.
-- **One title style for all tabs (F17).** The picked drafts mix large in-content titles (Workout, Exercises) with a small top bar (History). Proposed: a large title that collapses into a small top bar as the list scrolls, with actions on the right (History's calendar toggle) and Exercises' search bar under its title.
-- **Reordering (F15).** The routine editor gets drag handles, while the logger still uses Move up / Move down. Proposed: add a small Compose drag-and-drop list library, use it in the routine editor, and give the logger a "Reorder exercises" entry in its menu that opens the same compact draggable list.
-- **Display face for big numbers (F03).** The app is offline, so a font must be bundled. Proposed: Roboto with tabular figures for now; revisit a condensed face (about 100 KB) after D2.
+- **Elapsed time and rest share one top-bar chip (F04 + F06).** Direction: during rest the chip shows the countdown; swiping it sideways flips it to the elapsed time in a different colour, and it flips back on the next swipe or after 5 seconds. Still to settle: how to avoid a missed swipe hitting Finish, which today ends the workout at once with no way back (see the D2 item).
 
 ## Phase D1: Design foundations
 
@@ -147,6 +147,7 @@ Goal: during a session the set table gets the screen, and the rest timer stays o
 - [ ] PR mark: the set number sits on a gold disc in its usual place, read out as "Set 1, personal record" (F21)
 - [ ] RPE column opt-in per exercise from its ⋮ menu, shown anyway when any set already has RPE (schema v3, migration and migration test) (F05)
 - [ ] Rest countdown as a top-bar chip with an emptying ring, replacing the rest bar; tap for −15 / +15 / Skip; pulses in the last 10 seconds (F06)
+- [ ] During rest, swipe the chip to flip it to the elapsed time in a different colour; it flips back on the next swipe or after 5 seconds. Also offered as a TalkBack action, and a cross-fade instead of the flip when animations are off (F04 + F06; mechanics still open, see Design decisions)
 - [ ] Keypad context line ("Bench press · Set 3 · Reps", last time on the right) with the hide button in it; step keys show their unit; "." greyed out for reps (F07)
 - [ ] The workout detail's editor picks all of this up (it shares the logger's editor) but keeps its own top bar and Done button
 
