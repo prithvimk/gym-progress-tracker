@@ -121,10 +121,8 @@ Settled while planning, to keep the picks from contradicting each other:
 - **One title style on all tabs (F17):** a large title that collapses into a small top bar as the list scrolls, with actions on the right (History's calendar toggle) and Exercises' search bar under its title.
 - **Reordering is drag and drop everywhere (F15).** A small Compose drag-and-drop list library powers the routine editor, and the logger gets a "Reorder exercises" menu entry that opens the same compact draggable list.
 - **Roboto with tabular figures (F03).** No bundled display face for now; revisit a condensed one (about 100 KB) after D2.
-
-Open:
-
-- **Elapsed time and rest share one top-bar chip (F04 + F06).** Direction: during rest the chip shows the countdown; swiping it sideways flips it to the elapsed time in a different colour, and it flips back on the next swipe or after 5 seconds. Still to settle: how to avoid a missed swipe hitting Finish, which today ends the workout at once with no way back (see the D2 item).
+- **Rest and elapsed time share one top-bar chip; tap the title to peek (F04 + F06, F22).** Outside rest the chip shows the elapsed time. During rest it shows only the countdown, and tapping the routine title spins it round to the elapsed time for 5 seconds. A split pill showing both was ruled out: at phone width it left one letter of the title.
+- **Finishing can be undone.** Finish sits beside the chip and today ends the workout at once, so the finish summary gets a Resume workout button that reopens the session.
 
 ## Phase D1: Design foundations
 
@@ -147,7 +145,8 @@ Goal: during a session the set table gets the screen, and the rest timer stays o
 - [ ] PR mark: the set number sits on a gold disc in its usual place, read out as "Set 1, personal record" (F21)
 - [ ] RPE column opt-in per exercise from its ⋮ menu, shown anyway when any set already has RPE (schema v3, migration and migration test) (F05)
 - [ ] Rest countdown as a top-bar chip with an emptying ring, replacing the rest bar; tap for −15 / +15 / Skip; pulses in the last 10 seconds (F06)
-- [ ] During rest, swipe the chip to flip it to the elapsed time in a different colour; it flips back on the next swipe or after 5 seconds. Also offered as a TalkBack action, and a cross-fade instead of the flip when animations are off (F04 + F06; mechanics still open, see Design decisions)
+- [ ] Peek at the elapsed time during rest: tapping the routine title spins the chip to the elapsed time in inverted colours, with a line that drains over 5 seconds before it spins back; tapping the title again flips it back sooner. Rest ending mid-peek still buzzes and leaves the chip on the elapsed time. Offered as a TalkBack action on the chip, whose label carries both times; a cross-fade replaces the spin when animations are off; a one-time hint on the first rest (F22)
+- [ ] Resume workout on the finish summary (today's dialog, then D3's full screen): reopens the session (clears its end time) after a Finish tapped by mistake; offered only until the summary is dismissed. It ships with the top bar, since that is what puts Finish beside the chip
 - [ ] Keypad context line ("Bench press · Set 3 · Reps", last time on the right) with the hide button in it; step keys show their unit; "." greyed out for reps (F07)
 - [ ] The workout detail's editor picks all of this up (it shares the logger's editor) but keeps its own top bar and Done button
 
