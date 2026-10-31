@@ -19,13 +19,32 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.prithvimk.gymtracker.R
 import io.github.prithvimk.gymtracker.domain.model.Equipment
 import io.github.prithvimk.gymtracker.domain.model.MuscleGroup
+
+/** The editor's dialog while it is open. */
+@Composable
+fun ExerciseEditorHost(editor: ExerciseEditor) {
+    val state by editor.state.collectAsStateWithLifecycle()
+    state?.let {
+        ExerciseEditorDialog(
+            state = it,
+            onNameChange = editor::onNameChange,
+            onMuscleGroupChange = editor::onMuscleGroupChange,
+            onEquipmentChange = editor::onEquipmentChange,
+            onSave = editor::onSave,
+            onToggleArchived = editor::onToggleArchived,
+            onDismiss = editor::onDismiss,
+        )
+    }
+}
 
 @Composable
 fun ExerciseEditorDialog(

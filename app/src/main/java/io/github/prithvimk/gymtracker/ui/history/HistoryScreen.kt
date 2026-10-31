@@ -183,14 +183,14 @@ private fun weekLabelText(label: WeekLabel): String = when (label) {
 
 /** A date in the user's locale, from a skeleton such as "dMMM" ("13 Oct" or "Oct 13"). */
 @Composable
-private fun formatDate(date: LocalDate, skeleton: String): String {
+internal fun formatDate(date: LocalDate, skeleton: String): String {
     val locale = LocalConfiguration.current.locales[0]
     return DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, skeleton), locale).format(date)
 }
 
 /** When a workout started, e.g. "Tue 21 Oct, 18:05", in 12- or 24-hour time as the phone is set. */
 @Composable
-private fun formatStartTime(startedAt: Long): String {
+internal fun formatStartTime(startedAt: Long): String {
     val locale = LocalConfiguration.current.locales[0]
     val skeleton = if (DateFormat.is24HourFormat(LocalContext.current)) "EEEdMMMHm" else "EEEdMMMhm"
     val formatter = DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, skeleton), locale)

@@ -1,6 +1,7 @@
 package io.github.prithvimk.gymtracker.data.db.dao
 
 import androidx.room.Dao
+import androidx.room.Embedded
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Upsert
@@ -42,6 +43,15 @@ data class WorkoutHistoryRow(
     val recordCount: Int,
 )
 
+/** A completed set of an exercise, with the workout it was done in, for the exercise's history. */
+data class ExerciseHistoryRow(
+    val workoutId: String,
+    val workoutStartedAt: Long,
+    val workoutEndedAt: Long?,
+    val routineName: String?,
+    @Embedded val set: WorkoutSet,
+)
+
 @Dao
 interface WorkoutDao {
     /** Finished workouts, newest first, with what the history list shows for each. */
@@ -62,6 +72,24 @@ interface WorkoutDao {
         """
     )
     fun observeHistory(): Flow<List<WorkoutHistoryRow>>
+
+    /**
+     * Every completed set of the exercise, the active workout's included: newest workout first, then in
+     * the order the logger shows them.
+     */
+    @Query(
+        """
+        SELECT w.id AS workoutId, w.startedAt AS workoutStartedAt, w.endedAt AS workoutEndedAt,
+            r.name AS routineName, s.*
+        FROM workout_sets s
+        JOIN workout_exercises we ON we.id = s.workoutExerciseId
+        JOIN workouts w ON w.id = we.workoutId
+        LEFT JOIN routines r ON r.id = w.routineId
+        WHERE we.exerciseId = :exerciseId AND s.completedAt IS NOT NULL
+        ORDER BY w.startedAt DESC, w.id, we.position, s.position
+        """
+    )
+    fun observeExerciseHistory(exerciseId: String): Flow<List<ExerciseHistoryRow>>
 
     @Query("SELECT * FROM workouts ORDER BY startedAt DESC")
     fun observeAll(): Flow<List<Workout>>

@@ -75,7 +75,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.prithvimk.gymtracker.R
 import io.github.prithvimk.gymtracker.data.db.dao.WorkoutExerciseEntry
-import io.github.prithvimk.gymtracker.data.db.dao.WorkoutRecord
 import io.github.prithvimk.gymtracker.data.db.entity.Workout
 import io.github.prithvimk.gymtracker.data.db.entity.WorkoutSet
 import io.github.prithvimk.gymtracker.data.repository.RoutineSummary
@@ -365,7 +364,7 @@ private fun RecordsCelebration(records: List<ExerciseRecords>) {
                 )
                 exercise.records.forEach { record ->
                     Text(
-                        text = recordText(record),
+                        text = recordText(record.type, record.value, record.weightKg, record.reps),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onTertiaryContainer,
                     )
@@ -375,13 +374,14 @@ private fun RecordsCelebration(records: List<ExerciseRecords>) {
     }
 }
 
+/** A record in words, e.g. "Most reps at 80 kg: 9". [weightKg] and [reps] are the set holding it. */
 @Composable
-private fun recordText(record: WorkoutRecord): String = when (record.type) {
-    PrType.WEIGHT -> stringResource(R.string.record_weight, formatSetNumber(record.value))
+internal fun recordText(type: PrType, value: Double, weightKg: Double, reps: Int): String = when (type) {
+    PrType.WEIGHT -> stringResource(R.string.record_weight, formatSetNumber(value))
     PrType.REPS_AT_WEIGHT ->
-        stringResource(R.string.record_reps_at_weight, formatSetNumber(record.weightKg).ifEmpty { "0" }, record.reps)
-    PrType.E1RM -> stringResource(R.string.record_e1rm, formatVolume(record.value))
-    PrType.VOLUME -> stringResource(R.string.record_volume, formatVolume(record.value))
+        stringResource(R.string.record_reps_at_weight, formatSetNumber(weightKg).ifEmpty { "0" }, reps)
+    PrType.E1RM -> stringResource(R.string.record_e1rm, formatVolume(value))
+    PrType.VOLUME -> stringResource(R.string.record_volume, formatVolume(value))
 }
 
 @Composable

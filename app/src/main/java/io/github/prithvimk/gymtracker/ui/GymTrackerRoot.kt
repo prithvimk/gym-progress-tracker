@@ -19,6 +19,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import io.github.prithvimk.gymtracker.ui.exercises.ExerciseDetailRoute
+import io.github.prithvimk.gymtracker.ui.exercises.ExerciseDetailViewModel
 import io.github.prithvimk.gymtracker.ui.exercises.ExercisesRoute
 import io.github.prithvimk.gymtracker.ui.history.HistoryRoute
 import io.github.prithvimk.gymtracker.ui.navigation.TopLevelDestination
@@ -91,7 +93,15 @@ fun GymTrackerRoot() {
                 RoutineEditorRoute(onDone = { navController.popBackStack() })
             }
             composable(TopLevelDestination.HISTORY.route) { HistoryRoute() }
-            composable(TopLevelDestination.EXERCISES.route) { ExercisesRoute() }
+            composable(TopLevelDestination.EXERCISES.route) {
+                ExercisesRoute(onExerciseClick = { navController.navigate(exerciseDetailRoute(it.id)) })
+            }
+            composable(
+                EXERCISE_DETAIL_ROUTE,
+                arguments = listOf(navArgument(EXERCISE_ID) { type = NavType.StringType }),
+            ) {
+                ExerciseDetailRoute(onBack = { navController.popBackStack() })
+            }
             composable(TopLevelDestination.SETTINGS.route) { SettingsScreen() }
         }
     }
@@ -99,6 +109,11 @@ fun GymTrackerRoot() {
 
 private const val ROUTINE_ID = RoutineEditorViewModel.ROUTINE_ID_ARG
 private const val ROUTINE_EDITOR_ROUTE = "workout/routine?$ROUTINE_ID={$ROUTINE_ID}"
+
+private const val EXERCISE_ID = ExerciseDetailViewModel.EXERCISE_ID_ARG
+private const val EXERCISE_DETAIL_ROUTE = "exercises/{$EXERCISE_ID}"
+
+private fun exerciseDetailRoute(id: String): String = "exercises/$id"
 
 /** The routine editor for routine [id], or for a new routine when [id] is null. */
 private fun routineEditorRoute(id: String?): String = if (id ==

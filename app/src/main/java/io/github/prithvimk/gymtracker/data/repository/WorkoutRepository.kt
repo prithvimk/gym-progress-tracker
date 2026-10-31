@@ -1,5 +1,6 @@
 package io.github.prithvimk.gymtracker.data.repository
 
+import io.github.prithvimk.gymtracker.data.db.dao.ExerciseHistoryRow
 import io.github.prithvimk.gymtracker.data.db.dao.PersonalRecordDao
 import io.github.prithvimk.gymtracker.data.db.dao.WorkoutDao
 import io.github.prithvimk.gymtracker.data.db.dao.WorkoutExerciseEntry
@@ -152,6 +153,10 @@ class WorkoutRepository(
 
     /** Finished workouts for the history list, newest first. */
     fun observeHistory(): Flow<List<WorkoutHistoryRow>> = workoutDao.observeHistory()
+
+    /** Every completed set of the exercise with its workout, newest workout first. */
+    fun observeExerciseHistory(exerciseId: String): Flow<List<ExerciseHistoryRow>> =
+        workoutDao.observeExerciseHistory(exerciseId)
 
     fun observeActiveWorkout(): Flow<Workout?> = workoutDao.observeActive()
 
