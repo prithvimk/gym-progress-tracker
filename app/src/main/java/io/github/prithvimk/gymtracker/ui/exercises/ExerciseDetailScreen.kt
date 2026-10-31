@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -49,7 +50,7 @@ import io.github.prithvimk.gymtracker.domain.model.SetType
 import io.github.prithvimk.gymtracker.ui.history.formatDate
 import io.github.prithvimk.gymtracker.ui.history.formatStartTime
 import io.github.prithvimk.gymtracker.ui.theme.GymTrackerTheme
-import io.github.prithvimk.gymtracker.ui.workout.RecordBadgeBox
+import io.github.prithvimk.gymtracker.ui.workout.RecordBadge
 import io.github.prithvimk.gymtracker.ui.workout.SetLabel
 import io.github.prithvimk.gymtracker.ui.workout.formatSetNumber
 import io.github.prithvimk.gymtracker.ui.workout.formatVolume
@@ -239,20 +240,17 @@ private fun SessionCard(session: HistorySession) {
     }
 }
 
-/** "1  80 kg × 8  @ 8", with a PR badge on the label when the set holds a record. */
+/** "1  80 kg × 8  PR  @ 8": the PR badge follows the numbers when the set holds a record. */
 @Composable
 private fun SetRow(historySet: HistorySet) {
     val set = historySet.set
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(modifier = Modifier.width(SET_LABEL_WIDTH)) {
-            RecordBadgeBox(historySet.records) {
-                Text(
-                    text = historySet.label.text(),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
+        Text(
+            text = historySet.label.text(),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.width(SET_LABEL_WIDTH),
+        )
         Text(
             text =
             if (set.weightKg > 0) {
@@ -261,8 +259,11 @@ private fun SetRow(historySet: HistorySet) {
                 pluralStringResource(R.plurals.exercise_detail_set_reps, set.reps, set.reps)
             },
             style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.weight(1f),
         )
+        if (historySet.records.isNotEmpty()) {
+            RecordBadge(historySet.records, Modifier.padding(start = 8.dp))
+        }
+        Spacer(Modifier.weight(1f))
         set.rpe?.let { MutedText(stringResource(R.string.exercise_detail_rpe, formatSetNumber(it))) }
     }
 }

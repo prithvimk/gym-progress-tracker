@@ -202,9 +202,7 @@ private fun SetLabelButton(set: WorkoutSet, labelText: String, actions: SetActio
 
 /** Puts a PR badge on [content] while [types] is not empty. It pops in when the set ticked off sets a record. */
 @Composable
-internal fun RecordBadgeBox(types: List<PrType>, content: @Composable () -> Unit) {
-    val description =
-        stringResource(R.string.set_record_description, types.map { stringResource(it.badgeRes) }.joinToString())
+private fun RecordBadgeBox(types: List<PrType>, content: @Composable () -> Unit) {
     BadgedBox(
         badge = {
             AnimatedVisibility(
@@ -212,17 +210,25 @@ internal fun RecordBadgeBox(types: List<PrType>, content: @Composable () -> Unit
                 enter = scaleIn(spring(dampingRatio = Spring.DampingRatioMediumBouncy)) + fadeIn(),
                 exit = scaleOut() + fadeOut(),
             ) {
-                Badge(
-                    containerColor = MaterialTheme.colorScheme.tertiary,
-                    contentColor = MaterialTheme.colorScheme.onTertiary,
-                    modifier = Modifier.semantics { contentDescription = description },
-                ) {
-                    Text(stringResource(R.string.set_record_badge))
-                }
+                RecordBadge(types)
             }
         },
     ) {
         content()
+    }
+}
+
+/** The PR badge for a set holding records of [types], read out as the records it holds. */
+@Composable
+internal fun RecordBadge(types: List<PrType>, modifier: Modifier = Modifier) {
+    val description =
+        stringResource(R.string.set_record_description, types.map { stringResource(it.badgeRes) }.joinToString())
+    Badge(
+        containerColor = MaterialTheme.colorScheme.tertiary,
+        contentColor = MaterialTheme.colorScheme.onTertiary,
+        modifier = modifier.semantics { contentDescription = description },
+    ) {
+        Text(stringResource(R.string.set_record_badge))
     }
 }
 
