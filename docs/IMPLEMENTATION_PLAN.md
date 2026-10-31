@@ -205,7 +205,7 @@ Done when: you can uninstall, reinstall, import the export file, and all history
 
 ## After v1
 
-These come from the Should-have list and are tracked as separate milestones:
+These come from the Should-have list. Each gets its own checklist section here when its turn comes:
 
 - v1.1: progression suggestions (double progression with a configurable increment)
 - v1.2: per-exercise charts (e1RM, top set, volume) and weekly volume per muscle group (growing out of D4's e1RM sparkline)
@@ -215,5 +215,5 @@ These come from the Should-have list and are tracked as separate milestones:
 ## Working agreement
 
 - One branch and pull request per checklist item or small group of items; `main` stays releasable
-- Each phase is a GitHub milestone; each checklist item is an issue
+- This file is the tracker: tick each checklist item in the pull request that lands it. No GitHub milestones or issues
 - Schema changes always ship with a Room migration and a migration test from Phase 1 onward
