@@ -179,7 +179,12 @@
     <string name="set_record_reps_at_weight">most reps at this weight</string>
     <string name="set_record_e1rm">best estimated 1RM</string>
     <string name="set_record_volume">best session volume</string>
-    <string name="set_options">Options for set %1$s</string>
+    <!-- A set's label as TalkBack reads it, e.g. "Set 1" or "Set W". -->
+    <string name="set_label_description">Set %1$s</string>
+    <!-- A set's label when the set holds records, e.g. "Set 1, personal record: heaviest weight". -->
+    <string name="set_label_record_description">Set %1$s, personal record: %2$s</string>
+    <!-- What tapping a set's label does, read out by TalkBack. -->
+    <string name="set_options_action">Set options</string>
     <string name="set_weight_description">Set %1$s weight in kg</string>
     <string name="set_reps_description">Set %1$s reps</string>
     <string name="set_rpe_description">Set %1$s RPE, optional</string>
@@ -194,6 +199,18 @@
     <string name="keypad_delete">Delete</string>
     <string name="keypad_hide">Hide keypad</string>
     <string name="keypad_next">Next</string>
+    <!-- The keypad's top line: exercise, set and field, e.g. "Bench Press · Set 3 · Reps". -->
+    <string name="keypad_context">%1$s · %2$s · %3$s</string>
+    <string name="keypad_set_number">Set %1$d</string>
+    <string name="keypad_field_weight">Weight</string>
+    <string name="keypad_field_reps">Reps</string>
+    <string name="keypad_field_rpe">RPE</string>
+    <!-- Last session's counterpart of the set, e.g. "Last 80 kg × 8". -->
+    <string name="keypad_last">Last %1$s</string>
+    <plurals name="keypad_step_reps">
+        <item quantity="one">%d rep</item>
+        <item quantity="other">%d reps</item>
+    </plurals>
     <string name="set_type_warmup">Warm-up</string>
     <string name="set_type_working">Working</string>
     <string name="set_type_drop">Drop set</string>
