@@ -1,7 +1,7 @@
 package io.github.prithvimk.gymtracker.data.repository
 
-import io.github.prithvimk.gymtracker.data.db.dao.PersonalRecordDao
 import io.github.prithvimk.gymtracker.data.db.dao.ExerciseHistoryRow
+import io.github.prithvimk.gymtracker.data.db.dao.PersonalRecordDao
 import io.github.prithvimk.gymtracker.data.db.dao.WorkoutDao
 import io.github.prithvimk.gymtracker.data.db.dao.WorkoutExerciseEntry
 import io.github.prithvimk.gymtracker.data.db.dao.WorkoutHistoryRow

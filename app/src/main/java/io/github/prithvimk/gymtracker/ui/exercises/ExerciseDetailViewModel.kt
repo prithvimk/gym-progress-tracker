@@ -23,11 +23,8 @@ sealed interface ExerciseDetailState {
     data object Missing : ExerciseDetailState
 
     /** [sessions] is newest first, and empty until a set of the exercise is completed. */
-    data class Loaded(
-        val exercise: Exercise,
-        val records: List<RecordBest>,
-        val sessions: List<HistorySession>,
-    ) : ExerciseDetailState
+    data class Loaded(val exercise: Exercise, val records: List<RecordBest>, val sessions: List<HistorySession>) :
+        ExerciseDetailState
 }
 
 class ExerciseDetailViewModel(

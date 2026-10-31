@@ -56,6 +56,7 @@ import io.github.prithvimk.gymtracker.ui.workout.formatVolume
 import io.github.prithvimk.gymtracker.ui.workout.recordText
 import io.github.prithvimk.gymtracker.ui.workout.text
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 
 @Composable
@@ -266,7 +267,8 @@ private fun SetRow(historySet: HistorySet) {
     }
 }
 
-private fun localDate(epochMillis: Long) = Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault()).toLocalDate()
+private fun localDate(epochMillis: Long): LocalDate =
+    Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault()).toLocalDate()
 
 private val SET_LABEL_WIDTH = 40.dp
 
