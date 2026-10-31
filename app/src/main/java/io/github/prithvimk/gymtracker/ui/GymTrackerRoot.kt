@@ -23,6 +23,8 @@ import io.github.prithvimk.gymtracker.ui.exercises.ExerciseDetailRoute
 import io.github.prithvimk.gymtracker.ui.exercises.ExerciseDetailViewModel
 import io.github.prithvimk.gymtracker.ui.exercises.ExercisesRoute
 import io.github.prithvimk.gymtracker.ui.history.HistoryRoute
+import io.github.prithvimk.gymtracker.ui.history.WorkoutDetailRoute
+import io.github.prithvimk.gymtracker.ui.history.WorkoutDetailViewModel
 import io.github.prithvimk.gymtracker.ui.navigation.TopLevelDestination
 import io.github.prithvimk.gymtracker.ui.navigation.icon
 import io.github.prithvimk.gymtracker.ui.navigation.tabEnterTransition
@@ -92,7 +94,15 @@ fun GymTrackerRoot() {
             ) {
                 RoutineEditorRoute(onDone = { navController.popBackStack() })
             }
-            composable(TopLevelDestination.HISTORY.route) { HistoryRoute() }
+            composable(TopLevelDestination.HISTORY.route) {
+                HistoryRoute(onWorkoutClick = { navController.navigate(workoutDetailRoute(it)) })
+            }
+            composable(
+                WORKOUT_DETAIL_ROUTE,
+                arguments = listOf(navArgument(WORKOUT_ID) { type = NavType.StringType }),
+            ) {
+                WorkoutDetailRoute(onBack = { navController.popBackStack() })
+            }
             composable(TopLevelDestination.EXERCISES.route) {
                 ExercisesRoute(onExerciseClick = { navController.navigate(exerciseDetailRoute(it.id)) })
             }
@@ -114,6 +124,11 @@ private const val EXERCISE_ID = ExerciseDetailViewModel.EXERCISE_ID_ARG
 private const val EXERCISE_DETAIL_ROUTE = "exercises/{$EXERCISE_ID}"
 
 private fun exerciseDetailRoute(id: String): String = "exercises/$id"
+
+private const val WORKOUT_ID = WorkoutDetailViewModel.WORKOUT_ID_ARG
+private const val WORKOUT_DETAIL_ROUTE = "history/{$WORKOUT_ID}"
+
+private fun workoutDetailRoute(id: String): String = "history/$id"
 
 /** The routine editor for routine [id], or for a new routine when [id] is null. */
 private fun routineEditorRoute(id: String?): String = if (id ==

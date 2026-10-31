@@ -564,6 +564,61 @@ class WorkoutRepositoryTest {
     }
 
     @Test
+    fun `a set ticked in a finished workout counts as done when it ended, and its records are dated then`() = runTest {
+        logPastBench("w1", startedAt = 0L, weightKg = 100.0, reps = 5)
+        db.workoutDao().upsert(workout("w2", startedAt = 10L, endedAt = 20L))
+        db.workoutDao().upsertExercise(workoutExercise("w2-bench", "w2", "bench"))
+        db.workoutDao().upsertSet(workoutSet("forgot", "w2-bench", weightKg = 105.0, reps = 5))
+        clock = 9_000L
+
+        repository.setSetCompleted("forgot", completed = true)
+
+        val set = repository.observeSetsForWorkout("w2").first().single()
+        assertEquals(20L, set.completedAt)
+        assertEquals(9_000L, set.updatedAt)
+        val weight = recordsFor("bench").filter { it.type == PrType.WEIGHT }.sortedBy { it.achievedAt }
+        assertEquals(listOf("w1-set" to 1L, "forgot" to 20L), weight.map { it.setId to it.achievedAt })
+    }
+
+    @Test
+    fun `editing a past workout recomputes the records of the workouts after it`() = runTest {
+        logPastBench("w1", startedAt = 0L, weightKg = 100.0, reps = 5)
+        logPastBench("w2", startedAt = 10L, weightKg = 102.5, reps = 5)
+        repository.backfillPersonalRecordsIfMissing()
+        assertEquals(listOf("w1-set", "w2-set"), weightRecordSets())
+
+        repository.updateSetWeight("w1-set", 105.0)
+        assertEquals(listOf("w1-set"), weightRecordSets())
+
+        repository.updateSetWeight("w1-set", 95.0)
+        assertEquals(listOf("w1-set", "w2-set"), weightRecordSets())
+    }
+
+    @Test
+    fun `setsBefore is the session before the workout, not the latest one`() = runTest {
+        logPastBench("w1", startedAt = 0L, weightKg = 100.0, reps = 5)
+        logPastBench("w2", startedAt = 10L, weightKg = 102.5, reps = 5)
+        logPastBench("w3", startedAt = 20L, weightKg = 105.0, reps = 5)
+
+        assertEquals(listOf(100.0), repository.setsBefore("bench", "w2").map { it.weightKg })
+        assertEquals(listOf(102.5), repository.setsBefore("bench", "w3").map { it.weightKg })
+        assertEquals(emptyList<Double>(), repository.setsBefore("bench", "w1").map { it.weightKg })
+        assertEquals(emptyList<Double>(), repository.setsBefore("ohp", "w3").map { it.weightKg })
+    }
+
+    @Test
+    fun `observeWorkout follows edits and ends with null once the workout is deleted`() = runTest {
+        logPastBench("w1", startedAt = 0L, weightKg = 100.0, reps = 5)
+        repository.updateWorkoutNotes("w1", "Felt strong")
+        assertEquals("Felt strong", repository.observeWorkout("w1").first()?.notes)
+
+        repository.deleteWorkout("w1")
+
+        assertNull(repository.observeWorkout("w1").first())
+        assertTrue(recordsFor("bench").isEmpty())
+    }
+
+    @Test
     fun `an exercise logged twice in a workout counts as one session for volume`() = runTest {
         logPastBench("w1", startedAt = 0L, weightKg = 100.0, reps = 5)
         db.workoutDao().upsert(workout("w2", startedAt = 10L, endedAt = 20L))

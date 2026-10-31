@@ -195,6 +195,19 @@ interface WorkoutDao {
     @Query("SELECT * FROM workouts WHERE id = :id")
     suspend fun getById(id: String): Workout?
 
+    @Query("SELECT * FROM workouts WHERE id = :id")
+    fun observeById(id: String): Flow<Workout?>
+
+    /** When the set's workout ended, or null if it is still running or the set does not exist. */
+    @Query(
+        """
+        SELECT w.endedAt FROM workout_sets s JOIN workout_exercises we ON we.id = s.workoutExerciseId
+        JOIN workouts w ON w.id = we.workoutId
+        WHERE s.id = :setId
+        """
+    )
+    suspend fun getWorkoutEndForSet(setId: String): Long?
+
     @Upsert
     suspend fun upsert(workout: Workout)
 
@@ -315,6 +328,24 @@ interface WorkoutDao {
         """
     )
     suspend fun getPreviousSets(exerciseId: String, excludingWorkoutId: String): List<WorkoutSet>
+
+    /**
+     * Like [getPreviousSets], but only from workouts that started before [workoutId] did, so a past
+     * workout's "last time" is the session before it rather than the latest one.
+     */
+    @Query(
+        """
+        SELECT * FROM workout_sets WHERE workoutExerciseId = (
+            SELECT we.id FROM workout_exercises we JOIN workouts w ON w.id = we.workoutId
+            WHERE we.exerciseId = :exerciseId AND w.endedAt IS NOT NULL AND w.id != :workoutId
+                AND w.startedAt < (SELECT startedAt FROM workouts WHERE id = :workoutId)
+            ORDER BY w.startedAt DESC, we.position
+            LIMIT 1
+        )
+        ORDER BY position
+        """
+    )
+    suspend fun getSetsBefore(exerciseId: String, workoutId: String): List<WorkoutSet>
 
     /**
      * Appends a working set after the exercise's last one, prefilled by [prefillForNewSet]. A transaction,

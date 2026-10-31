@@ -9,9 +9,11 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -46,6 +48,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -101,10 +104,9 @@ fun WorkoutRoute(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val confirmingDiscard by viewModel.confirmingDiscard.collectAsStateWithLifecycle()
-    val picker by viewModel.picker.collectAsStateWithLifecycle()
-    val pendingRemoval by viewModel.pendingRemoval.collectAsStateWithLifecycle()
     val finished by viewModel.finished.collectAsStateWithLifecycle()
-    val keypad by viewModel.keypad.collectAsStateWithLifecycle()
+    val editor = viewModel.editor
+    val keypad by editor.keypad.collectAsStateWithLifecycle()
     val routines by viewModel.routines.collectAsStateWithLifecycle()
     val rest by viewModel.rest.collectAsStateWithLifecycle()
     val restEdit by viewModel.restEdit.collectAsStateWithLifecycle()
@@ -117,24 +119,8 @@ fun WorkoutRoute(
     // Asked when a workout starts, since that is when the rest timer will soon want to notify.
     val requestNotifications = rememberNotificationPermissionRequest()
     val restActions = remember(viewModel) { RestActions(viewModel::onRestAdjust, viewModel::onRestSkip) }
-    val setActions =
-        remember(viewModel) {
-            SetActions(
-                onTypeChange = viewModel::onSetTypeChange,
-                onCompletedChange = viewModel::onSetCompletedChange,
-                onDelete = viewModel::onDeleteSet,
-                onFieldClick = viewModel::onFieldClick,
-            )
-        }
-    val keypadActions =
-        remember(viewModel) {
-            KeypadActions(
-                onKey = viewModel::onKeypadKey,
-                onStep = viewModel::onKeypadStep,
-                onNext = viewModel::onKeypadNext,
-                onHide = viewModel::onKeypadHide,
-            )
-        }
+    // Ticking a set in the logger also starts the rest timer.
+    val setActions = remember(viewModel) { editor.setActions(onCompletedChange = viewModel::onSetCompletedChange) }
 
     WorkoutScreen(
         state = state,
@@ -144,15 +130,15 @@ fun WorkoutRoute(
         },
         onFinishClick = viewModel::onFinishClick,
         onDiscardClick = viewModel::onDiscardClick,
-        onAddExercisesClick = viewModel::onAddExercisesClick,
-        onMoveExercise = viewModel::onMoveExercise,
-        onRemoveExercise = viewModel::onRemoveExercise,
-        onAddSet = viewModel::onAddSet,
-        onWorkoutNotesChange = viewModel::onWorkoutNotesChange,
-        onExerciseNotesChange = viewModel::onExerciseNotesChange,
+        onAddExercisesClick = editor::onAddExercisesClick,
+        onMoveExercise = editor::onMoveExercise,
+        onRemoveExercise = editor::onRemoveExercise,
+        onAddSet = editor::onAddSet,
+        onWorkoutNotesChange = editor::onWorkoutNotesChange,
+        onExerciseNotesChange = editor::onExerciseNotesChange,
         setActions = setActions,
         keypad = keypad,
-        keypadActions = keypadActions,
+        keypadActions = editor.keypadActions,
         routines = routines,
         onStartRoutineClick = {
             requestNotifications()
@@ -165,33 +151,7 @@ fun WorkoutRoute(
         modifier = modifier,
     )
 
-    picker?.let { pickerState ->
-        ExercisePickerSheet(
-            state = pickerState,
-            onQueryChange = viewModel::onPickerQueryChange,
-            onToggle = viewModel::onPickerToggle,
-            onConfirm = viewModel::onPickerConfirm,
-            onDismiss = viewModel::onPickerDismiss,
-        )
-    }
-
-    pendingRemoval?.let { pending ->
-        AlertDialog(
-            onDismissRequest = viewModel::onRemoveDismiss,
-            title = { Text(stringResource(R.string.workout_remove_title, pending.name)) },
-            text = { Text(pluralStringResource(R.plurals.workout_remove_body, pending.setCount, pending.setCount)) },
-            confirmButton = {
-                TextButton(onClick = viewModel::onRemoveConfirm) {
-                    Text(stringResource(R.string.workout_remove_confirm))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = viewModel::onRemoveDismiss) {
-                    Text(stringResource(R.string.workout_remove_keep))
-                }
-            },
-        )
-    }
+    SessionEditorDialogs(editor)
 
     finished?.let { workout ->
         val routineName = workout.savingAsRoutine
@@ -273,6 +233,40 @@ fun WorkoutRoute(
     }
 }
 
+/** The add-exercises sheet and the confirmation before removing an exercise, while [editor] has them open. */
+@Composable
+internal fun SessionEditorDialogs(editor: SessionEditor) {
+    val picker by editor.picker.collectAsStateWithLifecycle()
+    val pendingRemoval by editor.pendingRemoval.collectAsStateWithLifecycle()
+    picker?.let { pickerState ->
+        ExercisePickerSheet(
+            state = pickerState,
+            onQueryChange = editor::onPickerQueryChange,
+            onToggle = editor::onPickerToggle,
+            onConfirm = editor::onPickerConfirm,
+            onDismiss = editor::onPickerDismiss,
+        )
+    }
+
+    pendingRemoval?.let { pending ->
+        AlertDialog(
+            onDismissRequest = editor::onRemoveDismiss,
+            title = { Text(stringResource(R.string.workout_remove_title, pending.name)) },
+            text = { Text(pluralStringResource(R.plurals.workout_remove_body, pending.setCount, pending.setCount)) },
+            confirmButton = {
+                TextButton(onClick = editor::onRemoveConfirm) {
+                    Text(stringResource(R.string.workout_remove_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = editor::onRemoveDismiss) {
+                    Text(stringResource(R.string.workout_remove_keep))
+                }
+            },
+        )
+    }
+}
+
 @Composable
 private fun WorkoutSummaryDialog(
     summary: WorkoutSummary,
@@ -325,17 +319,24 @@ private fun WorkoutSummaryDialog(
     )
 }
 
-/** The records a finished workout set, under a trophy that pops in, grouped by exercise. */
+/**
+ * The records a workout set, under a trophy, grouped by exercise. The trophy pops in when [celebrate]
+ * is set, as on the finish summary.
+ */
 @Composable
-private fun RecordsCelebration(records: List<ExerciseRecords>) {
-    val trophyScale = remember { Animatable(0f) }
+internal fun RecordsCelebration(
+    records: List<ExerciseRecords>,
+    modifier: Modifier = Modifier,
+    celebrate: Boolean = true,
+) {
+    val trophyScale = remember { Animatable(if (celebrate) 0f else 1f) }
     LaunchedEffect(Unit) {
         trophyScale.animateTo(1f, spring(dampingRatio = Spring.DampingRatioHighBouncy, stiffness = Spring.StiffnessLow))
     }
     val count = records.sumOf { it.records.size }
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(bottom = 8.dp)
             .background(MaterialTheme.colorScheme.tertiaryContainer, RoundedCornerShape(12.dp))
@@ -588,7 +589,6 @@ private fun RoutineCard(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ActiveContent(
     state: WorkoutUiState.Active,
@@ -616,7 +616,81 @@ private fun ActiveContent(
             delay(TICK_MS)
         }
     }
+    SessionEditorContent(
+        state = state,
+        actions =
+        SessionEditActions(
+            onAddExercisesClick = onAddExercisesClick,
+            onMoveExercise = onMoveExercise,
+            onRemoveExercise = onRemoveExercise,
+            onAddSet = onAddSet,
+            onWorkoutNotesChange = onWorkoutNotesChange,
+            onExerciseNotesChange = onExerciseNotesChange,
+            setActions = setActions,
+            keypadActions = keypadActions,
+            onRestEditClick = onRestEditClick,
+        ),
+        keypad = keypad,
+        modifier = modifier,
+        header = {
+            Text(
+                text = state.routineName ?: stringResource(R.string.workout_active_title),
+                style = MaterialTheme.typography.headlineMedium,
+            )
+            Text(
+                text = formatElapsed(elapsed),
+                style = MaterialTheme.typography.displaySmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        },
+        // Stays up over the keypad too, since the next set's numbers are often typed while resting.
+        aboveKeypad = { if (rest != null) RestBar(rest = rest, actions = restActions) },
+        footer = {
+            OutlinedButton(onClick = onDiscardClick, modifier = Modifier.weight(1f)) {
+                Text(stringResource(R.string.workout_discard))
+            }
+            Button(onClick = onFinishClick, modifier = Modifier.weight(1f)) {
+                Text(stringResource(R.string.workout_finish))
+            }
+        },
+    )
+}
 
+/**
+ * The edits [SessionEditorContent] passes on. [onRestEditClick] is null where rest times don't apply,
+ * as in a finished workout, and then rest times are neither shown nor offered.
+ */
+@Immutable
+internal class SessionEditActions(
+    val onAddExercisesClick: () -> Unit,
+    val onMoveExercise: (workoutExerciseId: String, offset: Int) -> Unit,
+    val onRemoveExercise: (workoutExerciseId: String) -> Unit,
+    val onAddSet: (workoutExerciseId: String) -> Unit,
+    val onWorkoutNotesChange: (notes: String) -> Unit,
+    val onExerciseNotesChange: (workoutExerciseId: String, notes: String) -> Unit,
+    val setActions: SetActions,
+    val keypadActions: KeypadActions,
+    val onRestEditClick: ((workoutExerciseId: String) -> Unit)?,
+)
+
+/**
+ * A workout's notes and exercises with their set tables, as the logger edits them, under [header].
+ * The keypad comes up over [footer]'s row of buttons while it is typing into a set; [aboveKeypad]
+ * sits above both. Both are put away while the system keyboard is up for a note.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun SessionEditorContent(
+    state: WorkoutUiState.Active,
+    actions: SessionEditActions,
+    keypad: KeypadState?,
+    header: @Composable ColumnScope.() -> Unit,
+    footer: @Composable RowScope.() -> Unit,
+    modifier: Modifier = Modifier,
+    aboveKeypad: @Composable () -> Unit = {},
+) {
+    val keypadActions = actions.keypadActions
     // Compose keeps a field focused until told otherwise, so the cursor would linger after the
     // keyboard is put away or the user taps elsewhere. Both of those end editing here.
     val focusManager = LocalFocusManager.current
@@ -636,18 +710,7 @@ private fun ActiveContent(
 
     // Fields and buttons handle their own taps; a tap on anything else lands here.
     Column(modifier = modifier.fillMaxSize().pointerInput(keypadActions) { detectTapGestures { endEditing() } }) {
-        Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp)) {
-            Text(
-                text = state.routineName ?: stringResource(R.string.workout_active_title),
-                style = MaterialTheme.typography.headlineMedium,
-            )
-            Text(
-                text = formatElapsed(elapsed),
-                style = MaterialTheme.typography.displaySmall,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(top = 4.dp),
-            )
-        }
+        Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp), content = header)
         LazyColumn(
             modifier = Modifier.weight(1f).fillMaxWidth(),
             contentPadding = PaddingValues(16.dp),
@@ -659,7 +722,7 @@ private fun ActiveContent(
                     initial = state.workout.notes,
                     label = stringResource(R.string.workout_notes),
                     placeholder = stringResource(R.string.workout_notes_placeholder),
-                    onChange = onWorkoutNotesChange,
+                    onChange = actions.onWorkoutNotesChange,
                 )
             }
             if (state.exercises.isEmpty()) {
@@ -674,32 +737,32 @@ private fun ActiveContent(
                 }
             }
             itemsIndexed(state.exercises, key = { _, entry -> entry.id }) { index, entry ->
+                val onRestEditClick = actions.onRestEditClick
                 ExerciseCard(
                     entry = entry,
                     sets = state.sets[entry.id].orEmpty(),
                     previousSets = state.previousSets[entry.exerciseId].orEmpty(),
                     badges = state.badges,
                     keypad = openKeypad,
-                    setActions = setActions,
-                    onAddSet = { onAddSet(entry.id) },
-                    onNotesChange = { onExerciseNotesChange(entry.id, it) },
+                    setActions = actions.setActions,
+                    onAddSet = { actions.onAddSet(entry.id) },
+                    onNotesChange = { actions.onExerciseNotesChange(entry.id, it) },
                     canMoveUp = index > 0,
                     canMoveDown = index < state.exercises.lastIndex,
-                    onMove = { offset -> onMoveExercise(entry.id, offset) },
-                    onRemove = { onRemoveExercise(entry.id) },
-                    onRestEditClick = { onRestEditClick(entry.id) },
+                    onMove = { offset -> actions.onMoveExercise(entry.id, offset) },
+                    onRemove = { actions.onRemoveExercise(entry.id) },
+                    onRestEditClick = onRestEditClick?.let { { it(entry.id) } },
                     modifier = Modifier.animateItem(),
                 )
             }
             item {
-                FilledTonalButton(onClick = onAddExercisesClick, modifier = Modifier.fillMaxWidth()) {
+                FilledTonalButton(onClick = actions.onAddExercisesClick, modifier = Modifier.fillMaxWidth()) {
                     Icon(Icons.Filled.Add, contentDescription = null)
                     Text(stringResource(R.string.workout_add_exercises), modifier = Modifier.padding(start = 8.dp))
                 }
             }
         }
-        // Stays up over the keypad too, since the next set's numbers are often typed while resting.
-        if (rest != null && !imeVisible) RestBar(rest = rest, actions = restActions)
+        if (!imeVisible) aboveKeypad()
         if (openKeypad != null) {
             Keypad(field = openKeypad.field, actions = keypadActions)
         } else if (!imeVisible) {
@@ -707,14 +770,8 @@ private fun ActiveContent(
             Row(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxWidth().padding(16.dp),
-            ) {
-                OutlinedButton(onClick = onDiscardClick, modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.workout_discard))
-                }
-                Button(onClick = onFinishClick, modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.workout_finish))
-                }
-            }
+                content = footer,
+            )
         }
     }
 }
@@ -733,7 +790,7 @@ private fun ExerciseCard(
     canMoveDown: Boolean,
     onMove: (offset: Int) -> Unit,
     onRemove: () -> Unit,
-    onRestEditClick: () -> Unit,
+    onRestEditClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
@@ -755,11 +812,13 @@ private fun ExerciseCard(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Text(
-                        text = targetsText(entry),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
+                    targetsText(entry, showRest = onRestEditClick != null)?.let {
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
                 }
                 Box {
                     IconButton(onClick = { menuOpen = true }) {
@@ -779,13 +838,15 @@ private fun ExerciseCard(
                                 },
                             )
                         }
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.workout_rest_time)) },
-                            onClick = {
-                                menuOpen = false
-                                onRestEditClick()
-                            },
-                        )
+                        if (onRestEditClick != null) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.workout_rest_time)) },
+                                onClick = {
+                                    menuOpen = false
+                                    onRestEditClick()
+                                },
+                            )
+                        }
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.workout_move_up)) },
                             enabled = canMoveUp,
@@ -837,14 +898,23 @@ private fun ExerciseCard(
     }
 }
 
-/** The exercise's rep range from its routine, if any, and its rest time: "8–12 reps · Rest 2:00". */
+/**
+ * The exercise's rep range from its routine, if any, and its rest time when [showRest]: "8–12 reps ·
+ * Rest 2:00". Null when there is neither.
+ */
 @Composable
-private fun targetsText(entry: WorkoutExerciseEntry): String {
-    val rest = stringResource(R.string.workout_exercise_rest, restText(entry.restSeconds ?: DEFAULT_REST_SECONDS))
+private fun targetsText(entry: WorkoutExerciseEntry, showRest: Boolean): String? {
+    val rest =
+        if (showRest) {
+            stringResource(R.string.workout_exercise_rest, restText(entry.restSeconds ?: DEFAULT_REST_SECONDS))
+        } else {
+            null
+        }
     val min = entry.repMin
     val max = entry.repMax
     if (min == null || max == null) return rest
-    return stringResource(R.string.exercise_subtitle, stringResource(R.string.workout_exercise_targets, min, max), rest)
+    val targets = stringResource(R.string.workout_exercise_targets, min, max)
+    return if (rest == null) targets else stringResource(R.string.exercise_subtitle, targets, rest)
 }
 
 /**

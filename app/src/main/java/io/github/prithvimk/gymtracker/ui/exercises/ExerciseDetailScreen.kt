@@ -223,7 +223,7 @@ private fun SessionCard(session: HistorySession) {
                 modifier = Modifier.padding(vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                session.sets.forEach { SetRow(it) }
+                session.sets.forEach { HistorySetRow(it) }
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 MutedText(stringResource(R.string.exercise_detail_volume, formatVolume(session.volumeKg)))
@@ -242,9 +242,9 @@ private fun SessionCard(session: HistorySession) {
 
 /** "1  80 kg × 8  PR  @ 8": the PR badge follows the numbers when the set holds a record. */
 @Composable
-private fun SetRow(historySet: HistorySet) {
+internal fun HistorySetRow(historySet: HistorySet, modifier: Modifier = Modifier) {
     val set = historySet.set
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = modifier) {
         Text(
             text = historySet.label.text(),
             style = MaterialTheme.typography.labelLarge,

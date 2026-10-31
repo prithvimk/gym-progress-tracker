@@ -118,6 +118,10 @@ class WorkoutRepository(
     suspend fun previousSets(exerciseId: String, currentWorkoutId: String): List<WorkoutSet> =
         workoutDao.getPreviousSets(exerciseId, excludingWorkoutId = currentWorkoutId)
 
+    /** The exercise's sets from the last finished workout that started before [workoutId]. */
+    suspend fun setsBefore(exerciseId: String, workoutId: String): List<WorkoutSet> =
+        workoutDao.getSetsBefore(exerciseId, workoutId)
+
     /** Adds a working set to the end of the exercise, prefilled from last session or the set before it. */
     suspend fun addSet(workoutExerciseId: String) {
         workoutDao.appendSet(id = newId(), workoutExerciseId = workoutExerciseId, createdAt = now())
@@ -142,10 +146,15 @@ class WorkoutRepository(
         recomputeRecordsIfCompleted(setId)
     }
 
-    /** Marks the set complete now, or clears the mark. */
+    /**
+     * Marks the set complete, or clears the mark. A set in a running workout is done now; one ticked
+     * later in a finished workout counts as done when that workout ended, so any record it sets is
+     * dated to the session and ordered after the sets done in it.
+     */
     suspend fun setSetCompleted(setId: String, completed: Boolean) {
         val time = now()
-        workoutDao.updateSetCompletedAt(setId, completedAt = if (completed) time else null, updatedAt = time)
+        val completedAt = if (completed) workoutDao.getWorkoutEndForSet(setId) ?: time else null
+        workoutDao.updateSetCompletedAt(setId, completedAt = completedAt, updatedAt = time)
         recomputeRecordsForSet(setId)
     }
 
@@ -159,6 +168,8 @@ class WorkoutRepository(
         workoutDao.observeExerciseHistory(exerciseId)
 
     fun observeActiveWorkout(): Flow<Workout?> = workoutDao.observeActive()
+
+    fun observeWorkout(id: String): Flow<Workout?> = workoutDao.observeById(id)
 
     fun observeWorkoutExercises(workoutId: String): Flow<List<WorkoutExercise>> = workoutDao.observeExercises(workoutId)
 
