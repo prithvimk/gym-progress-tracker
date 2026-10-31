@@ -770,7 +770,11 @@ internal fun SessionEditorContent(
         }
         if (!imeVisible) aboveKeypad()
         if (openKeypad != null) {
-            Keypad(field = openKeypad.field, actions = keypadActions)
+            Keypad(
+                field = openKeypad.field,
+                actions = keypadActions,
+                context = keypadContext(state, openKeypad.target),
+            )
         } else if (!imeVisible) {
             // Hidden while typing, so the keyboard leaves as much of the list visible as it can.
             Row(

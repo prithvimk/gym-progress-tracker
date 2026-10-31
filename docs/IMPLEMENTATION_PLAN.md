@@ -141,13 +141,13 @@ Done when: no lavender, purple or pink is left on any screen in light or dark, a
 Goal: during a session the set table gets the screen, and the rest timer stays out of the way.
 
 - [ ] Compact top bar: routine name and elapsed time, a filled Finish button, and a menu with Workout notes, Add exercises and Discard; the bottom footer goes away (F04)
-- [ ] Quiet set table: borderless filled fields, done rows with a light tint, and a filled done check with a 48 dp touch target (F05)
-- [ ] PR mark: the set number sits on a gold disc in its usual place, read out as "Set 1, personal record" (F21)
+- [x] Quiet set table: borderless filled fields, done rows with a light tint, and a filled done check with a 48 dp touch target (F05) (an undone set shows an empty outlined box, so done is not shown by colour alone)
+- [x] PR mark: the set number sits on a gold disc in its usual place, read out as "Set 1, personal record" (F21) (followed by the record types; the exercise detail keeps its PR badge after the numbers)
 - [ ] RPE column opt-in per exercise from its ⋮ menu, shown anyway when any set already has RPE (schema v3, migration and migration test) (F05)
 - [ ] Rest countdown as a top-bar chip with an emptying ring, replacing the rest bar; tap for −15 / +15 / Skip; pulses in the last 10 seconds (F06)
 - [ ] Peek at the elapsed time during rest: tapping the routine title spins the chip to the elapsed time in inverted colours, with a line that drains over 5 seconds before it spins back; tapping the title again flips it back sooner. Rest ending mid-peek still buzzes and leaves the chip on the elapsed time. Offered as a TalkBack action on the chip, whose label carries both times; a cross-fade replaces the spin when animations are off; a one-time hint on the first rest (F22)
 - [ ] Resume workout on the finish summary (today's dialog, then D3's full screen): reopens the session (clears its end time) after a Finish tapped by mistake; offered only until the summary is dismissed. It ships with the top bar, since that is what puts Finish beside the chip
-- [ ] Keypad context line ("Bench press · Set 3 · Reps", last time on the right) with the hide button in it; step keys show their unit; "." greyed out for reps (F07)
+- [x] Keypad context line ("Bench press · Set 3 · Reps", last time on the right) with the hide button in it; step keys show their unit; "." greyed out for reps (F07) (Next now spans two keys where the hide key was)
 - [ ] The workout detail's editor picks all of this up (it shares the logger's editor) but keeps its own top bar and Done button
 
 Done when: on a Pixel 7, with the keypad open and a rest running, at least four set rows are visible.

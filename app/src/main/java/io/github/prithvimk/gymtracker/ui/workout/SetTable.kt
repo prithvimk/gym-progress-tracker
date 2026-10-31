@@ -2,13 +2,14 @@
 
 package io.github.prithvimk.gymtracker.ui.workout
 
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -21,15 +22,16 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -48,10 +50,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -60,6 +68,7 @@ import io.github.prithvimk.gymtracker.data.db.entity.WorkoutSet
 import io.github.prithvimk.gymtracker.domain.matchPrevious
 import io.github.prithvimk.gymtracker.domain.model.PrType
 import io.github.prithvimk.gymtracker.domain.model.SetType
+import io.github.prithvimk.gymtracker.ui.components.RecordDisc
 import io.github.prithvimk.gymtracker.ui.format.weightNumberText
 import io.github.prithvimk.gymtracker.ui.theme.recordColors
 import io.github.prithvimk.gymtracker.ui.theme.tabular
@@ -134,11 +143,10 @@ private fun SetRow(
 ) {
     val completed = set.completedAt != null
     val labelText = label.text()
-    val rowColor =
-        if (completed) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow
+    val rowColor = if (completed) MaterialTheme.colorScheme.primary.copy(alpha = DONE_ROW_ALPHA) else Color.Transparent
     SetRowLayout(
         modifier = Modifier.padding(vertical = 2.dp).background(rowColor, RoundedCornerShape(8.dp)),
-        labelCell = { RecordBadgeBox(badge) { SetLabelButton(set, labelText, actions) } },
+        labelCell = { SetLabelButton(set, labelText, badge, actions) },
         lastCell = { LastTimeText(lastTime) },
         weightCell = {
             SetValueField(
@@ -156,29 +164,64 @@ private fun SetRow(
             SetValueField(set, SetField.RPE, keypad, stringResource(R.string.set_rpe_description, labelText), actions)
         },
         doneCell = {
-            val description = stringResource(R.string.set_complete_description, labelText)
-            Checkbox(
+            DoneCheck(
                 checked = completed,
                 onCheckedChange = { actions.onCompletedChange(set.id, it) },
                 // A set needs reps before it can count as done; a done set can always be unticked.
                 enabled = completed || set.reps > 0,
-                modifier = Modifier.semantics { contentDescription = description },
+                description = stringResource(R.string.set_complete_description, labelText),
             )
         },
     )
 }
 
+/**
+ * The set's label, which opens its menu. A set holding records shows its label on a gold disc, read
+ * out as "Set 1, personal record: heaviest weight"; the disc pops in when the set ticked off sets one.
+ */
 @Composable
-private fun SetLabelButton(set: WorkoutSet, labelText: String, actions: SetActions) {
+private fun SetLabelButton(set: WorkoutSet, labelText: String, records: List<PrType>, actions: SetActions) {
     var menuOpen by remember { mutableStateOf(false) }
-    val description = stringResource(R.string.set_options, labelText)
+    val description =
+        if (records.isEmpty()) {
+            stringResource(R.string.set_label_description, labelText)
+        } else {
+            stringResource(
+                R.string.set_label_record_description,
+                labelText,
+                records.map { stringResource(it.badgeRes) }.joinToString(),
+            )
+        }
+    val optionsLabel = stringResource(R.string.set_options_action)
     Box {
         TextButton(
             onClick = { menuOpen = true },
             contentPadding = PaddingValues(0.dp),
-            modifier = Modifier.semantics { contentDescription = description },
+            modifier = Modifier.clearAndSetSemantics {
+                contentDescription = description
+                role = Role.Button
+                onClick(label = optionsLabel) {
+                    menuOpen = true
+                    true
+                }
+            },
         ) {
-            Text(labelText, style = MaterialTheme.typography.titleMedium.tabular())
+            val hasRecord = records.isNotEmpty()
+            // A record set's label sits on the disc; others keep plain text in the same place.
+            AnimatedContent(
+                targetState = hasRecord,
+                transitionSpec = {
+                    (scaleIn(spring(dampingRatio = Spring.DampingRatioMediumBouncy)) + fadeIn())
+                        .togetherWith(scaleOut() + fadeOut())
+                },
+                label = "set label",
+            ) { record ->
+                if (record) {
+                    RecordDisc(labelText)
+                } else {
+                    Text(labelText, style = MaterialTheme.typography.titleMedium.tabular())
+                }
+            }
         }
         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
             SetType.entries.forEach { type ->
@@ -200,24 +243,6 @@ private fun SetLabelButton(set: WorkoutSet, labelText: String, actions: SetActio
                 },
             )
         }
-    }
-}
-
-/** Puts a PR badge on [content] while [types] is not empty. It pops in when the set ticked off sets a record. */
-@Composable
-private fun RecordBadgeBox(types: List<PrType>, content: @Composable () -> Unit) {
-    BadgedBox(
-        badge = {
-            AnimatedVisibility(
-                visible = types.isNotEmpty(),
-                enter = scaleIn(spring(dampingRatio = Spring.DampingRatioMediumBouncy)) + fadeIn(),
-                exit = scaleOut() + fadeOut(),
-            ) {
-                RecordBadge(types)
-            }
-        },
-    ) {
-        content()
     }
 }
 
@@ -256,7 +281,7 @@ private fun SetValueField(
         when {
             editing != null && !editing.isValid -> colors.error
             editing != null -> colors.primary
-            else -> colors.outline
+            else -> Color.Transparent
         }
     val focusManager = LocalFocusManager.current
     val bringIntoView = remember { BringIntoViewRequester() }
@@ -274,7 +299,8 @@ private fun SetValueField(
             .heightIn(min = FIELD_MIN_HEIGHT)
             .bringIntoViewRequester(bringIntoView)
             .clip(FIELD_SHAPE)
-            .border(if (editing != null) 2.dp else 1.dp, borderColor, FIELD_SHAPE)
+            .background(colors.surfaceContainerLowest)
+            .border(2.dp, borderColor, FIELD_SHAPE)
             .clickable {
                 // A note may have the system keyboard up; the keypad takes over from it.
                 focusManager.clearFocus()
@@ -296,6 +322,46 @@ private fun SetValueField(
                     },
                 ).padding(horizontal = 2.dp),
         )
+    }
+}
+
+/**
+ * The done tick: a filled primary square with a check when done, an empty outlined one otherwise,
+ * inside a 48 dp touch target. Read out as a checkbox.
+ */
+@Composable
+private fun DoneCheck(checked: Boolean, onCheckedChange: (Boolean) -> Unit, enabled: Boolean, description: String) {
+    val colors = MaterialTheme.colorScheme
+    val shape = RoundedCornerShape(8.dp)
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .size(DONE_TARGET)
+            .toggleable(value = checked, enabled = enabled, role = Role.Checkbox, onValueChange = onCheckedChange)
+            .semantics { contentDescription = description },
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(DONE_BOX)
+                .alpha(if (enabled) 1f else DISABLED_ALPHA)
+                .then(
+                    if (checked) {
+                        Modifier.background(colors.primary, shape)
+                    } else {
+                        Modifier.background(colors.surfaceContainerLowest, shape).border(2.dp, colors.outline, shape)
+                    },
+                ),
+        ) {
+            if (checked) {
+                Icon(
+                    Icons.Filled.Check,
+                    contentDescription = null,
+                    tint = colors.onPrimary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
     }
 }
 
@@ -362,7 +428,7 @@ private val PrType.badgeRes: Int
             PrType.VOLUME -> R.string.set_record_volume
         }
 
-private val SetType.nameRes: Int
+internal val SetType.nameRes: Int
     get() =
         when (this) {
             SetType.WARMUP -> R.string.set_type_warmup
@@ -381,10 +447,14 @@ private val SetType.shortRes: Int
         }
 
 private val FIELD_MIN_HEIGHT = 48.dp
-private val FIELD_SHAPE = RoundedCornerShape(4.dp)
+private val DONE_TARGET = 48.dp
+private val DONE_BOX = 32.dp
+private val FIELD_SHAPE = RoundedCornerShape(8.dp)
 private const val SELECTION_ALPHA = 0.3f
+private const val DONE_ROW_ALPHA = 0.12f
+private const val DISABLED_ALPHA = 0.38f
 private val LABEL_WIDTH = 44.dp
-private val DONE_WIDTH = 44.dp
+private val DONE_WIDTH = 48.dp
 private const val LAST_COLUMN = 1.1f
 private const val WEIGHT_COLUMN = 1.2f
 private const val REPS_COLUMN = 1f
