@@ -82,6 +82,15 @@
         <item quantity="one">%d PR</item>
         <item quantity="other">%d PRs</item>
     </plurals>
+    <string name="history_view_list">List</string>
+    <string name="history_view_calendar">Calendar</string>
+    <string name="history_month_previous">Previous month</string>
+    <string name="history_month_next">Next month</string>
+    <string name="history_month_empty">No workouts this month.</string>
+    <plurals name="history_day_description">
+        <item quantity="one">%1$s, %2$d workout</item>
+        <item quantity="other">%1$s, %2$d workouts</item>
+    </plurals>
     <string name="workout_detail_back">Back</string>
     <string name="workout_detail_edit">Edit workout</string>
     <string name="workout_detail_delete">Delete workout</string>

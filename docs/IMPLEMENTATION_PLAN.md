@@ -93,7 +93,7 @@ Goal: see your past work and get rewarded for beating it.
 
 - [x] History list grouped by week, each card showing routine name, duration, volume and PR count
 - [x] Workout detail screen; edit or delete a past workout (PRs recomputed after edits) (opened from a History card; editing reuses the logger, and a set ticked afterwards counts as done when the workout ended)
-- [ ] Month calendar with trained days highlighted
+- [x] Month calendar with trained days highlighted (a List / Calendar switch on History; tapping a trained day lists that day's workouts)
 - [x] PR detection on set completion: heaviest weight, most reps at a weight, best e1RM, best session volume (recomputed per exercise from its whole history after any set change; each session keeps only its best set per record type)
 - [x] PR badge in the logger and a short celebration on the finish summary (session volume shows only on the summary, since it moves to each newly ticked set)
 - [x] Exercise detail screen: PR list and full history for that exercise (opened from the Exercises tab; editing moved behind its edit button)
