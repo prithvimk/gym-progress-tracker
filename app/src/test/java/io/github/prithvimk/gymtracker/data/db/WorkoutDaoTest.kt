@@ -106,7 +106,7 @@ class WorkoutDaoTest {
     }
 
     @Test
-    fun `exercise history has completed sets of that exercise, newest workout first, with the routine name`() = runTest {
+    fun `exercise history is the exercise's completed sets, newest workout first, with routine names`() = runTest {
         db.exerciseDao().insert(exercise(id = "ohp"))
         db.routineDao().upsert(routine(id = "push", name = "Push"))
         dao.upsert(workout(id = "old", startedAt = 1L, endedAt = 2L, routineId = "push"))
