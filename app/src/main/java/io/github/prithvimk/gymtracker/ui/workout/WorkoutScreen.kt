@@ -346,7 +346,9 @@ internal fun RecordsCelebration(
             Icon(
                 painter = painterResource(R.drawable.ic_trophy),
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.tertiary,
+                // The container's own content colour, like the text beside it. Plain tertiary is made for
+                // surfaces, and on some phones' dynamic dark schemes the container is light enough to hide it.
+                tint = MaterialTheme.colorScheme.onTertiaryContainer,
                 modifier = Modifier.size(32.dp).scale(trophyScale.value),
             )
             Text(
