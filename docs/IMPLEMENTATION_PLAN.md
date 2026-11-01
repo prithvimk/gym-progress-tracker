@@ -123,6 +123,17 @@ Settled while planning, to keep the picks from contradicting each other:
 - **Roboto with tabular figures (F03).** No bundled display face for now; revisit a condensed one (about 100 KB) after D2.
 - **Rest and elapsed time share one top-bar chip; tap the title to peek (F04 + F06, F22).** Outside rest the chip shows the elapsed time. During rest it shows only the countdown, and tapping the routine title spins it round to the elapsed time for 5 seconds. A split pill showing both was ruled out: at phone width it left one letter of the title.
 - **Finishing can be undone.** Finish sits beside the chip and today ends the workout at once, so the finish summary gets a Resume workout button that reopens the session.
+- **The set table is "A · Aligned table" (F05),** picked in Nov 2026 from four [mock-ups](https://claude.ai/artifact/HabdwXaZ4jXTRfDAv5h4DQ) (aligned table, set rows, focus card, ledger; light and dark). Its column grid is fixed widths shared by headings and rows (Set 40 dp, Last takes the rest, kg 76, Reps 60, Done 48, 8 dp gaps; kg 68, Reps 52, RPE 48 with RPE on). The Last column's heading stays "Last", matching the keypad's "Last 80 kg × 7".
+- **Done sets stay editable.** Tapping a ticked set's number still opens the keypad, for fixing a typo without unticking; records are recomputed as before.
+
+### Progress
+
+- **D1 is done** (#22).
+- **D2 is part done** (#23): the aligned set table, gold PR disc, keypad context line and RPE opt-in (schema v3: `exercises.tracksRpe`, which Phase 5's JSON export must include). The workout detail's editor already shares these.
+- **Next up, in order:**
+  1. D2's compact top bar together with Resume workout on the finish summary.
+  2. D2's rest chip and peek, which should meet D2's "four set rows visible" check.
+  3. D3, D4 and D5, in any order.
 
 ## Phase D1: Design foundations
 
@@ -148,7 +159,7 @@ Goal: during a session the set table gets the screen, and the rest timer stays o
 - [ ] Peek at the elapsed time during rest: tapping the routine title spins the chip to the elapsed time in inverted colours, with a line that drains over 5 seconds before it spins back; tapping the title again flips it back sooner. Rest ending mid-peek still buzzes and leaves the chip on the elapsed time. Offered as a TalkBack action on the chip, whose label carries both times; a cross-fade replaces the spin when animations are off; a one-time hint on the first rest (F22)
 - [ ] Resume workout on the finish summary (today's dialog, then D3's full screen): reopens the session (clears its end time) after a Finish tapped by mistake; offered only until the summary is dismissed. It ships with the top bar, since that is what puts Finish beside the chip
 - [x] Keypad context line ("Bench press · Set 3 · Reps", last time on the right) with the hide button in it; step keys show their unit; "." greyed out for reps (F07) (Next now spans two keys where the hide key was)
-- [ ] The workout detail's editor picks all of this up (it shares the logger's editor) but keeps its own top bar and Done button
+- [ ] The workout detail's editor picks all of this up (it shares the logger's editor) but keeps its own top bar and Done button (it has the set table, PR disc, keypad line and RPE opt-in so far; tick this once the top bar lands)
 
 Done when: on a Pixel 7, with the keypad open and a rest running, at least four set rows are visible.
 
@@ -217,3 +228,4 @@ These come from the Should-have list. Each gets its own checklist section here w
 - One branch and pull request per checklist item or small group of items; `main` stays releasable
 - This file is the tracker: tick each checklist item in the pull request that lands it. No GitHub milestones or issues
 - Schema changes always ship with a Room migration and a migration test from Phase 1 onward
+- Pull requests are squash-merged. After a merge, start the next piece of work from the latest `main` on a fresh branch (or reset the old one), so merged commits don't come along
