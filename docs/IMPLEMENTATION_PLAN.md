@@ -129,11 +129,10 @@ Settled while planning, to keep the picks from contradicting each other:
 ### Progress
 
 - **D1 is done** (#22).
-- **D2 is part done** (#23): the aligned set table, gold PR disc, keypad context line and RPE opt-in (schema v3: `exercises.tracksRpe`, which Phase 5's JSON export must include). The workout detail's editor already shares these.
+- **D2 is part done** (#23): the aligned set table, gold PR disc, keypad context line and RPE opt-in (schema v3: `exercises.tracksRpe`, which Phase 5's JSON export must include). The workout detail's editor already shares these. Then the compact top bar and Resume workout on the finish summary.
 - **Next up, in order:**
-  1. D2's compact top bar together with Resume workout on the finish summary.
-  2. D2's rest chip and peek, which should meet D2's "four set rows visible" check.
-  3. D3, D4 and D5, in any order.
+  1. D2's rest chip and peek, which should meet D2's "four set rows visible" check.
+  2. D3, D4 and D5, in any order.
 
 ## Phase D1: Design foundations
 
@@ -151,15 +150,15 @@ Done when: no lavender, purple or pink is left on any screen in light or dark, a
 
 Goal: during a session the set table gets the screen, and the rest timer stays out of the way.
 
-- [ ] Compact top bar: routine name and elapsed time, a filled Finish button, and a menu with Workout notes, Add exercises and Discard; the bottom footer goes away (F04)
+- [x] Compact top bar: routine name and elapsed time, a filled Finish button, and a menu with Workout notes, Add exercises and Discard; the bottom footer goes away (F04) (the elapsed time is a chip, ready to become the rest chip; workout notes moved to the end of the list, shown once they have text or are picked from the menu, which scrolls to them and focuses them; Add exercises also stays at the end of the list; the rest bar stays above the keypad until the rest chip lands)
 - [x] Quiet set table: borderless filled fields, done rows with a light tint, and a filled done check with a 48 dp touch target (F05) (picked from four mock-ups as "aligned table": one column grid shared by the small-caps headings and the rows, wells only on undone sets, done rows tinted edge to edge, and an undone set shows an empty outlined box, so done is not shown by colour alone)
 - [x] PR mark: the set number sits on a gold disc in its usual place, read out as "Set 1, personal record" (F21) (followed by the record types; the exercise detail keeps its PR badge after the numbers)
 - [x] RPE column opt-in per exercise from its ⋮ menu, shown anyway when any set already has RPE (schema v3, migration and migration test) (F05) (`Exercise.tracksRpe`; the number columns narrow to make room)
 - [ ] Rest countdown as a top-bar chip with an emptying ring, replacing the rest bar; tap for −15 / +15 / Skip; pulses in the last 10 seconds (F06)
 - [ ] Peek at the elapsed time during rest: tapping the routine title spins the chip to the elapsed time in inverted colours, with a line that drains over 5 seconds before it spins back; tapping the title again flips it back sooner. Rest ending mid-peek still buzzes and leaves the chip on the elapsed time. Offered as a TalkBack action on the chip, whose label carries both times; a cross-fade replaces the spin when animations are off; a one-time hint on the first rest (F22)
-- [ ] Resume workout on the finish summary (today's dialog, then D3's full screen): reopens the session (clears its end time) after a Finish tapped by mistake; offered only until the summary is dismissed. It ships with the top bar, since that is what puts Finish beside the chip
+- [x] Resume workout on the finish summary (today's dialog, then D3's full screen): reopens the session (clears its end time) after a Finish tapped by mistake; offered only until the summary is dismissed. It ships with the top bar, since that is what puts Finish beside the chip (not offered when the app ended an idle workout, which would only end again; the time spent finished counts towards the duration)
 - [x] Keypad context line ("Bench press · Set 3 · Reps", last time on the right) with the hide button in it; step keys show their unit; "." greyed out for reps (F07) (Next now spans two keys where the hide key was)
-- [ ] The workout detail's editor picks all of this up (it shares the logger's editor) but keeps its own top bar and Done button (it has the set table, PR disc, keypad line and RPE opt-in so far; tick this once the top bar lands)
+- [x] The workout detail's editor picks all of this up (it shares the logger's editor) but keeps its own top bar and Done button (Done moved into its top bar as a filled button, where the logger has Finish, so it has no footer either; its notes stay shown, since it has no menu to ask for them; rest timing doesn't apply to a finished workout)
 
 Done when: on a Pixel 7, with the keypad open and a rest running, at least four set rows are visible.
 

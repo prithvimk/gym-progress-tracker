@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -26,12 +25,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
@@ -41,23 +43,28 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
@@ -68,6 +75,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -103,6 +111,7 @@ import io.github.prithvimk.gymtracker.ui.theme.isDark
 import io.github.prithvimk.gymtracker.ui.theme.recordColors
 import io.github.prithvimk.gymtracker.ui.theme.tabular
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 
 /** The Workout tab. [onEditRoutine] opens the routine editor on a routine, or on a new one for null. */
 @Composable
@@ -172,6 +181,7 @@ fun WorkoutRoute(
                 endedAutomatically = workout.endedAutomatically,
                 onSaveAsRoutine = viewModel::onSaveAsRoutineClick,
                 onDismiss = viewModel::onSummaryDismiss,
+                onResume = if (workout.canResume) viewModel::onResumeWorkoutClick else null,
             )
         } else {
             SaveRoutineDialog(
@@ -284,6 +294,7 @@ private fun WorkoutSummaryDialog(
     endedAutomatically: Boolean,
     onSaveAsRoutine: () -> Unit,
     onDismiss: () -> Unit,
+    onResume: (() -> Unit)?,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -324,6 +335,10 @@ private fun WorkoutSummaryDialog(
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.workout_summary_done)) }
         },
         dismissButton = {
+            // Resume undoes a Finish tapped by mistake; the dialog's buttons wrap if they don't fit.
+            if (onResume != null) {
+                TextButton(onClick = onResume) { Text(stringResource(R.string.workout_summary_resume)) }
+            }
             TextButton(onClick = onSaveAsRoutine) { Text(stringResource(R.string.workout_save_as_routine)) }
         },
     )
@@ -621,54 +636,137 @@ private fun ActiveContent(
     onRestEditClick: (workoutExerciseId: String) -> Unit = {},
     onTracksRpeChange: (exerciseId: String, tracksRpe: Boolean) -> Unit = { _, _ -> },
 ) {
-    val startedAt = state.workout.startedAt
-    // Elapsed time is derived from startedAt, so it stays right across process death.
+    // Counts the times Workout notes was picked from the menu; each one shows the notes and focuses them.
+    var notesRequest by remember { mutableIntStateOf(0) }
+    Column(modifier = modifier.fillMaxSize()) {
+        WorkoutTopBar(
+            title = state.routineName ?: stringResource(R.string.workout_active_title),
+            startedAt = state.workout.startedAt,
+            onFinishClick = onFinishClick,
+            onNotesClick = { notesRequest++ },
+            onAddExercisesClick = onAddExercisesClick,
+            onDiscardClick = onDiscardClick,
+        )
+        SessionEditorContent(
+            state = state,
+            actions =
+            SessionEditActions(
+                onAddExercisesClick = onAddExercisesClick,
+                onMoveExercise = onMoveExercise,
+                onRemoveExercise = onRemoveExercise,
+                onAddSet = onAddSet,
+                onWorkoutNotesChange = onWorkoutNotesChange,
+                onExerciseNotesChange = onExerciseNotesChange,
+                onTracksRpeChange = onTracksRpeChange,
+                setActions = setActions,
+                keypadActions = keypadActions,
+                onRestEditClick = onRestEditClick,
+            ),
+            keypad = keypad,
+            modifier = Modifier.weight(1f),
+            notesRequest = notesRequest,
+            // Stays up over the keypad too, since the next set's numbers are often typed while resting.
+            aboveKeypad = { if (rest != null) RestBar(rest = rest, actions = restActions) },
+        )
+    }
+}
+
+/**
+ * The logger's top bar: the routine's name, the time since the workout started, Finish, and a menu with
+ * the rarer actions. Discard sits in the menu, two deliberate taps away from Finish.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun WorkoutTopBar(
+    title: String,
+    startedAt: Long,
+    onFinishClick: () -> Unit,
+    onNotesClick: () -> Unit,
+    onAddExercisesClick: () -> Unit,
+    onDiscardClick: () -> Unit,
+) {
+    var menuOpen by remember { mutableStateOf(false) }
+    TopAppBar(
+        title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        actions = {
+            ElapsedChip(startedAt)
+            Button(
+                onClick = onFinishClick,
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                modifier = Modifier.padding(start = 8.dp),
+            ) {
+                Text(stringResource(R.string.workout_finish))
+            }
+            Box {
+                IconButton(onClick = { menuOpen = true }) {
+                    Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.workout_more_options))
+                }
+                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.workout_notes)) },
+                        leadingIcon = { Icon(painterResource(R.drawable.ic_notes), contentDescription = null) },
+                        onClick = {
+                            menuOpen = false
+                            onNotesClick()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.workout_add_exercises)) },
+                        leadingIcon = { Icon(Icons.Filled.Add, contentDescription = null) },
+                        onClick = {
+                            menuOpen = false
+                            onAddExercisesClick()
+                        },
+                    )
+                    val error = MaterialTheme.colorScheme.error
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.workout_discard)) },
+                        leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null) },
+                        colors = MenuDefaults.itemColors(textColor = error, leadingIconColor = error),
+                        onClick = {
+                            menuOpen = false
+                            onDiscardClick()
+                        },
+                    )
+                }
+            }
+        },
+    )
+}
+
+/** The time since [startedAt], ticking each second. It is worked out from [startedAt], so it survives process death. */
+@Composable
+private fun ElapsedChip(startedAt: Long, modifier: Modifier = Modifier) {
     val elapsed by produceState(System.currentTimeMillis() - startedAt, startedAt) {
         while (true) {
             value = System.currentTimeMillis() - startedAt
             delay(TICK_MS)
         }
     }
-    SessionEditorContent(
-        state = state,
-        actions =
-        SessionEditActions(
-            onAddExercisesClick = onAddExercisesClick,
-            onMoveExercise = onMoveExercise,
-            onRemoveExercise = onRemoveExercise,
-            onAddSet = onAddSet,
-            onWorkoutNotesChange = onWorkoutNotesChange,
-            onExerciseNotesChange = onExerciseNotesChange,
-            onTracksRpeChange = onTracksRpeChange,
-            setActions = setActions,
-            keypadActions = keypadActions,
-            onRestEditClick = onRestEditClick,
-        ),
-        keypad = keypad,
-        modifier = modifier,
-        header = {
-            Text(
-                text = state.routineName ?: stringResource(R.string.workout_active_title),
-                style = MaterialTheme.typography.headlineMedium,
+    val text = formatClock(elapsed)
+    val description = stringResource(R.string.workout_elapsed_description, text)
+    Surface(
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        modifier = modifier.clearAndSetSemantics { contentDescription = description },
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(start = 8.dp, end = 12.dp, top = 6.dp, bottom = 6.dp),
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_rest_timer),
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
             )
             Text(
-                text = formatClock(elapsed),
-                style = MaterialTheme.typography.displaySmall.tabular(),
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(top = 4.dp),
+                text = text,
+                style = MaterialTheme.typography.labelLarge.tabular(),
+                modifier = Modifier.padding(start = 4.dp),
             )
-        },
-        // Stays up over the keypad too, since the next set's numbers are often typed while resting.
-        aboveKeypad = { if (rest != null) RestBar(rest = rest, actions = restActions) },
-        footer = {
-            OutlinedButton(onClick = onDiscardClick, modifier = Modifier.weight(1f)) {
-                Text(stringResource(R.string.workout_discard))
-            }
-            Button(onClick = onFinishClick, modifier = Modifier.weight(1f)) {
-                Text(stringResource(R.string.workout_finish))
-            }
-        },
-    )
+        }
+    }
 }
 
 /**
@@ -690,9 +788,10 @@ internal class SessionEditActions(
 )
 
 /**
- * A workout's notes and exercises with their set tables, as the logger edits them, under [header].
- * The keypad comes up over [footer]'s row of buttons while it is typing into a set; [aboveKeypad]
- * sits above both. Both are put away while the system keyboard is up for a note.
+ * A workout's exercises with their set tables and its notes, as the logger edits them, under [header].
+ * The keypad comes up at the bottom while it is typing into a set, with [aboveKeypad] over it; both are
+ * put away while the system keyboard is up for a note. The workout notes come last, shown when
+ * [alwaysShowNotes], when they have text, or once [notesRequest] goes up, which also focuses them.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -700,10 +799,11 @@ internal fun SessionEditorContent(
     state: WorkoutUiState.Active,
     actions: SessionEditActions,
     keypad: KeypadState?,
-    header: @Composable ColumnScope.() -> Unit,
-    footer: @Composable RowScope.() -> Unit,
     modifier: Modifier = Modifier,
+    header: (@Composable ColumnScope.() -> Unit)? = null,
     aboveKeypad: @Composable () -> Unit = {},
+    notesRequest: Int = 0,
+    alwaysShowNotes: Boolean = false,
 ) {
     val keypadActions = actions.keypadActions
     // Compose keeps a field focused until told otherwise, so the cursor would linger after the
@@ -723,23 +823,33 @@ internal fun SessionEditorContent(
         keypadActions.onHide()
     }
 
+    val listState = rememberLazyListState()
+    var notesShown by rememberSaveable(state.workout.id) { mutableStateOf(state.workout.notes.isNotEmpty()) }
+    val showNotes = alwaysShowNotes || notesShown
+    // Set when the notes are asked for, and cleared once the field has taken focus.
+    var focusNotes by remember { mutableStateOf(false) }
+    // The notes are the last item: after the exercises (or the line saying there are none) and Add exercises.
+    val notesIndex = state.exercises.size.coerceAtLeast(1) + 1
+    LaunchedEffect(notesRequest) {
+        if (notesRequest == 0) return@LaunchedEffect
+        notesShown = true
+        focusNotes = true
+        // Waits for the list to hold the notes before scrolling to them.
+        snapshotFlow { listState.layoutInfo.totalItemsCount }.first { it > notesIndex }
+        listState.animateScrollToItem(notesIndex)
+    }
+
     // Fields and buttons handle their own taps; a tap on anything else lands here.
     Column(modifier = modifier.fillMaxSize().pointerInput(keypadActions) { detectTapGestures { endEditing() } }) {
-        Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp), content = header)
+        if (header != null) {
+            Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp), content = header)
+        }
         LazyColumn(
+            state = listState,
             modifier = Modifier.weight(1f).fillMaxWidth(),
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            item(key = WORKOUT_NOTES_KEY) {
-                NotesField(
-                    key = state.workout.id,
-                    initial = state.workout.notes,
-                    label = stringResource(R.string.workout_notes),
-                    placeholder = stringResource(R.string.workout_notes_placeholder),
-                    onChange = actions.onWorkoutNotesChange,
-                )
-            }
             if (state.exercises.isEmpty()) {
                 item {
                     Text(
@@ -777,6 +887,20 @@ internal fun SessionEditorContent(
                     Text(stringResource(R.string.workout_add_exercises), modifier = Modifier.padding(start = 8.dp))
                 }
             }
+            if (showNotes) {
+                item(key = WORKOUT_NOTES_KEY) {
+                    NotesField(
+                        key = state.workout.id,
+                        initial = state.workout.notes,
+                        label = stringResource(R.string.workout_notes),
+                        placeholder = stringResource(R.string.workout_notes_placeholder),
+                        onChange = actions.onWorkoutNotesChange,
+                        requestFocus = focusNotes,
+                        onFocusRequested = { focusNotes = false },
+                        modifier = Modifier.animateItem(),
+                    )
+                }
+            }
         }
         if (!imeVisible) aboveKeypad()
         if (openKeypad != null) {
@@ -784,13 +908,6 @@ internal fun SessionEditorContent(
                 field = openKeypad.field,
                 actions = keypadActions,
                 context = keypadContext(state, openKeypad.target),
-            )
-        } else if (!imeVisible) {
-            // Hidden while typing, so the keyboard leaves as much of the list visible as it can.
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                content = footer,
             )
         }
     }
@@ -972,11 +1089,15 @@ private fun NotesField(
     onChange: (String) -> Unit,
     modifier: Modifier = Modifier,
     requestFocus: Boolean = false,
+    onFocusRequested: () -> Unit = {},
 ) {
     var text by rememberSaveable(key) { mutableStateOf(initial) }
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(requestFocus) {
-        if (requestFocus) focusRequester.requestFocus()
+        if (requestFocus) {
+            focusRequester.requestFocus()
+            onFocusRequested()
+        }
     }
     OutlinedTextField(
         value = text,
