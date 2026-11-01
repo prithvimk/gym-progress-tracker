@@ -10,6 +10,8 @@ import io.github.prithvimk.gymtracker.data.db.dao.WorkoutExerciseEntry
 import io.github.prithvimk.gymtracker.data.db.entity.Exercise
 import io.github.prithvimk.gymtracker.data.db.entity.Workout
 import io.github.prithvimk.gymtracker.data.db.entity.WorkoutSet
+import io.github.prithvimk.gymtracker.data.prefs.Hint
+import io.github.prithvimk.gymtracker.data.prefs.HintStore
 import io.github.prithvimk.gymtracker.data.repository.ExerciseRepository
 import io.github.prithvimk.gymtracker.data.repository.IdleWorkoutResult
 import io.github.prithvimk.gymtracker.data.repository.RoutineRepository
@@ -96,6 +98,7 @@ class WorkoutViewModel(
     exerciseRepository: ExerciseRepository,
     private val routineRepository: RoutineRepository,
     private val restTimer: RestTimer,
+    private val hintStore: HintStore,
 ) : ViewModel() {
     // The active workout comes straight from the database, so it is back after the app is killed.
     private val activeWorkout = workoutRepository.observeActiveWorkout()
@@ -150,6 +153,15 @@ class WorkoutViewModel(
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), emptyList())
 
     val rest: StateFlow<RestTimerState?> = restTimer.state
+
+    // True until the tip about peeking at the elapsed time has been shown, on the first rest.
+    private val _showPeekHint = MutableStateFlow(!hintStore.isShown(Hint.PEEK_ELAPSED))
+    val showPeekHint: StateFlow<Boolean> = _showPeekHint.asStateFlow()
+
+    fun onPeekHintShown() {
+        _showPeekHint.value = false
+        hintStore.markShown(Hint.PEEK_ELAPSED)
+    }
 
     private val _restEdit = MutableStateFlow<RestEdit?>(null)
     val restEdit: StateFlow<RestEdit?> = _restEdit.asStateFlow()
@@ -315,6 +327,7 @@ class WorkoutViewModel(
                         app.container.exerciseRepository,
                         app.container.routineRepository,
                         app.container.restTimer,
+                        app.container.hintStore,
                     )
                 }
             }

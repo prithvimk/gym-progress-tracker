@@ -47,6 +47,10 @@
     <string name="workout_discard">Discard workout</string>
     <string name="workout_more_options">More options</string>
     <string name="workout_elapsed_description">Elapsed time %1$s</string>
+    <string name="workout_rest_chip_description">Rest %1$s left, elapsed time %2$s</string>
+    <string name="workout_rest_adjust">Adjust rest</string>
+    <string name="workout_peek_action">Show elapsed time</string>
+    <string name="workout_peek_hint">Tap the title to see how long you\'ve been training</string>
     <string name="workout_summary_title">Workout finished</string>
     <string name="workout_summary_duration">Duration</string>
     <string name="workout_summary_exercises">Exercises</string>
