@@ -2,6 +2,8 @@ package io.github.prithvimk.gymtracker.di
 
 import android.content.Context
 import io.github.prithvimk.gymtracker.data.db.GymDatabase
+import io.github.prithvimk.gymtracker.data.prefs.HintStore
+import io.github.prithvimk.gymtracker.data.prefs.SharedPreferencesHintStore
 import io.github.prithvimk.gymtracker.data.repository.ExerciseRepository
 import io.github.prithvimk.gymtracker.data.repository.RoutineRepository
 import io.github.prithvimk.gymtracker.data.repository.WorkoutRepository
@@ -18,6 +20,7 @@ interface AppContainer {
     val workoutRepository: WorkoutRepository
     val exerciseSeeder: ExerciseSeeder
     val restTimer: RestTimer
+    val hintStore: HintStore
 }
 
 class DefaultAppContainer(context: Context) : AppContainer {
@@ -48,6 +51,8 @@ class DefaultAppContainer(context: Context) : AppContainer {
     override val restTimer: RestTimer by lazy {
         RestTimer(SharedPreferencesRestTimerStore(prefs), onRun = { RestTimerService.start(appContext) })
     }
+
+    override val hintStore: HintStore by lazy { SharedPreferencesHintStore(prefs) }
 
     private fun readSeedAsset(): String {
         val stream = appContext.assets.open(ExerciseSeeder.ASSET_PATH)
