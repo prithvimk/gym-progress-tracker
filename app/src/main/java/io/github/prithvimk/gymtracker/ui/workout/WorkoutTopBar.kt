@@ -1,9 +1,11 @@
 package io.github.prithvimk.gymtracker.ui.workout
 
 import android.provider.Settings
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -11,6 +13,10 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -41,6 +47,7 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.PlainTooltip
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TooltipBox
@@ -65,6 +72,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
@@ -79,12 +87,15 @@ import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
+import androidx.compose.ui.window.PopupProperties
 import io.github.prithvimk.gymtracker.R
 import io.github.prithvimk.gymtracker.timer.RestTimer
 import io.github.prithvimk.gymtracker.timer.RestTimerState
@@ -153,7 +164,7 @@ internal fun WorkoutTopBar(
     TopAppBar(
         title = {
             TooltipBox(
-                positionProvider = rememberBelowAnchorPositionProvider(),
+                positionProvider = rememberBelowAnchorPositionProvider(centered = false, gap = HINT_GAP),
                 tooltip = { PlainTooltip { Text(stringResource(R.string.workout_peek_hint)) } },
                 state = hint,
                 enableUserInput = false,
@@ -447,60 +458,96 @@ private fun RestRing(fraction: Float, color: Color) {
     }
 }
 
-/** −15 / +15 / Skip, opened from the rest chip. It stays open for more adjustments until dismissed. */
+/**
+ * −15 / +15 / Skip in a pill centred under the rest chip, opened by tapping it. It stays open for more
+ * adjustments until Skip, a tap outside it, or Back.
+ */
 @Composable
 private fun RestControls(expanded: Boolean, actions: RestActions, onDismiss: () -> Unit) {
-    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 12.dp),
+    val visible = remember { MutableTransitionState(false) }
+    visible.targetState = expanded
+    // Kept until the closing animation has finished.
+    if (!visible.currentState && !visible.targetState) return
+    Popup(
+        popupPositionProvider = rememberBelowAnchorPositionProvider(centered = true, gap = REST_CONTROLS_GAP),
+        onDismissRequest = onDismiss,
+        properties = PopupProperties(focusable = true),
+    ) {
+        val growFromChip = TransformOrigin(0.5f, 0f)
+        AnimatedVisibility(
+            visibleState = visible,
+            enter = fadeIn(tween(MENU_ANIMATION_MILLIS)) +
+                scaleIn(
+                    tween(MENU_ANIMATION_MILLIS),
+                    initialScale = MENU_INITIAL_SCALE,
+                    transformOrigin = growFromChip
+                ),
+            exit = fadeOut(tween(MENU_ANIMATION_MILLIS)) +
+                scaleOut(
+                    tween(MENU_ANIMATION_MILLIS),
+                    targetScale = MENU_INITIAL_SCALE,
+                    transformOrigin = growFromChip
+                ),
         ) {
-            Text(
-                text = stringResource(R.string.rest_label),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(end = 4.dp),
-            )
-            val subtract = stringResource(R.string.rest_subtract_description)
-            val add = stringResource(R.string.rest_add_description)
-            FilledTonalButton(
-                onClick = { actions.onAdjust(-RestTimer.ADJUST_STEP_SECONDS) },
-                contentPadding = PaddingValues(horizontal = 12.dp),
-                modifier = Modifier.clearAndSetSemantics {
-                    contentDescription = subtract
-                    role = Role.Button
-                    onClick {
-                        actions.onAdjust(-RestTimer.ADJUST_STEP_SECONDS)
-                        true
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                tonalElevation = 3.dp,
+                shadowElevation = 3.dp,
+                // Inset so the shadow isn't clipped by the popup's edges.
+                modifier = Modifier.padding(4.dp),
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(start = 20.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.rest_label),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(end = 4.dp),
+                    )
+                    RestStepButton(
+                        label = stringResource(R.string.rest_subtract),
+                        description = stringResource(R.string.rest_subtract_description),
+                        onClick = { actions.onAdjust(-RestTimer.ADJUST_STEP_SECONDS) },
+                    )
+                    RestStepButton(
+                        label = stringResource(R.string.rest_add),
+                        description = stringResource(R.string.rest_add_description),
+                        onClick = { actions.onAdjust(RestTimer.ADJUST_STEP_SECONDS) },
+                    )
+                    TextButton(
+                        onClick = {
+                            onDismiss()
+                            actions.onSkip()
+                        },
+                    ) {
+                        Text(stringResource(R.string.rest_skip))
                     }
-                },
-            ) {
-                Text(stringResource(R.string.rest_subtract))
-            }
-            FilledTonalButton(
-                onClick = { actions.onAdjust(RestTimer.ADJUST_STEP_SECONDS) },
-                contentPadding = PaddingValues(horizontal = 12.dp),
-                modifier = Modifier.clearAndSetSemantics {
-                    contentDescription = add
-                    role = Role.Button
-                    onClick {
-                        actions.onAdjust(RestTimer.ADJUST_STEP_SECONDS)
-                        true
-                    }
-                },
-            ) {
-                Text(stringResource(R.string.rest_add))
-            }
-            TextButton(
-                onClick = {
-                    onDismiss()
-                    actions.onSkip()
-                },
-            ) {
-                Text(stringResource(R.string.rest_skip))
+                }
             }
         }
+    }
+}
+
+/** A tonal −15 / +15 button, read out by TalkBack as [description]. */
+@Composable
+private fun RestStepButton(label: String, description: String, onClick: () -> Unit) {
+    FilledTonalButton(
+        onClick = onClick,
+        contentPadding = PaddingValues(horizontal = 12.dp),
+        modifier = Modifier.clearAndSetSemantics {
+            contentDescription = description
+            role = Role.Button
+            onClick {
+                onClick()
+                true
+            }
+        },
+    ) {
+        Text(label)
     }
 }
 
@@ -535,14 +582,14 @@ private fun rememberRemainingMillis(rest: RestTimerState?): Long {
 }
 
 /**
- * Puts a popup under its anchor, lined up with the anchor's start and kept inside the window. The
- * default tooltip position centres it over the title, which pushes it off the left edge or under the
- * status bar.
+ * Puts a popup [gap] under its anchor, centred on it when [centered], else lined up with its start, and
+ * kept inside the window. The default tooltip position centres the hint over the title, which pushes it
+ * off the left edge or under the status bar.
  */
 @Composable
-private fun rememberBelowAnchorPositionProvider(): PopupPositionProvider {
-    val gap = with(LocalDensity.current) { HINT_GAP.roundToPx() }
-    return remember(gap) {
+private fun rememberBelowAnchorPositionProvider(centered: Boolean, gap: Dp): PopupPositionProvider {
+    val gapPx = with(LocalDensity.current) { gap.roundToPx() }
+    return remember(centered, gapPx) {
         object : PopupPositionProvider {
             override fun calculatePosition(
                 anchorBounds: IntRect,
@@ -551,12 +598,12 @@ private fun rememberBelowAnchorPositionProvider(): PopupPositionProvider {
                 popupContentSize: IntSize,
             ): IntOffset {
                 val maxX = (windowSize.width - popupContentSize.width).coerceAtLeast(0)
-                val start = if (layoutDirection == LayoutDirection.Ltr) {
-                    anchorBounds.left
-                } else {
-                    anchorBounds.right - popupContentSize.width
+                val start = when {
+                    centered -> anchorBounds.center.x - popupContentSize.width / 2
+                    layoutDirection == LayoutDirection.Ltr -> anchorBounds.left
+                    else -> anchorBounds.right - popupContentSize.width
                 }
-                return IntOffset(start.coerceIn(0, maxX), anchorBounds.bottom + gap)
+                return IntOffset(start.coerceIn(0, maxX), anchorBounds.bottom + gapPx)
             }
         }
     }
@@ -584,6 +631,11 @@ private const val RING_TRACK_ALPHA = 0.25f
 private const val PEEK_LINE_ALPHA = 0.55f
 private val RING_STROKE = 2.5.dp
 private val HINT_GAP = 4.dp
+
+// The pill's own 4 dp inset makes this an 8 dp gap under the chip.
+private val REST_CONTROLS_GAP = 4.dp
+private const val MENU_ANIMATION_MILLIS = 150
+private const val MENU_INITIAL_SCALE = 0.8f
 private val PEEK_LINE_INSET = 12.dp
 private val PEEK_LINE_BOTTOM = 5.dp
 private val PEEK_LINE_WIDTH = 2.dp
