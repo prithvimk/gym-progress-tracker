@@ -72,7 +72,10 @@ data class FinishedWorkout(
     val endedAutomatically: Boolean = false,
     val savingAsRoutine: String? = null,
     val routineNameError: Boolean = false,
-)
+) {
+    /** Whether the summary offers to reopen the workout: only after the user finished it. */
+    val canResume: Boolean get() = !endedAutomatically
+}
 
 /** The rest time being picked for one exercise of the workout. */
 data class RestEdit(val workoutExerciseId: String, val exerciseName: String, val seconds: Int)
@@ -203,6 +206,16 @@ class WorkoutViewModel(
 
     fun onSummaryDismiss() {
         _finished.value = null
+    }
+
+    /**
+     * Reopens the workout the summary is showing, after a Finish tapped by mistake. Not offered for a
+     * workout the app ended for being idle, which would only end again.
+     */
+    fun onResumeWorkoutClick() {
+        val finished = _finished.value?.takeIf { it.canResume } ?: return
+        _finished.value = null
+        viewModelScope.launch { workoutRepository.resumeWorkout(finished.workoutId) }
     }
 
     fun onSaveAsRoutineClick() {

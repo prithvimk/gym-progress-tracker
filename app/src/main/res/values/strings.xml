@@ -44,7 +44,9 @@
     <string name="workout_notes">Workout notes</string>
     <string name="workout_notes_placeholder">How the session went</string>
     <string name="workout_finish">Finish</string>
-    <string name="workout_discard">Discard</string>
+    <string name="workout_discard">Discard workout</string>
+    <string name="workout_more_options">More options</string>
+    <string name="workout_elapsed_description">Elapsed time %1$s</string>
     <string name="workout_summary_title">Workout finished</string>
     <string name="workout_summary_duration">Duration</string>
     <string name="workout_summary_exercises">Exercises</string>
@@ -52,6 +54,7 @@
     <string name="workout_summary_volume">Volume</string>
     <string name="workout_summary_no_sets">No sets were marked done, so nothing counts towards volume.</string>
     <string name="workout_summary_done">Done</string>
+    <string name="workout_summary_resume">Resume workout</string>
     <string name="workout_summary_ended_automatically">Ended automatically after 3 hours without activity. It ends at your last activity, so the duration leaves out the idle time.</string>
     <string name="workout_idle_discarded_title">Workout discarded</string>
     <string name="workout_idle_discarded_body">Your workout was left open for over 3 hours with no sets done, so it was discarded.</string>

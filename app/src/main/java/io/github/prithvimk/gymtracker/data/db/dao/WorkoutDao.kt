@@ -164,6 +164,18 @@ interface WorkoutDao {
     suspend fun finish(id: String, endedAt: Long)
 
     /**
+     * Makes a finished workout active again, unless another workout is active by now. Returns the
+     * number of workouts reopened, so 0 or 1.
+     */
+    @Query(
+        """
+        UPDATE workouts SET endedAt = NULL, updatedAt = :updatedAt
+        WHERE id = :id AND endedAt IS NOT NULL AND NOT EXISTS (SELECT 1 FROM workouts WHERE endedAt IS NULL)
+        """
+    )
+    suspend fun reopen(id: String, updatedAt: Long): Int
+
+    /**
      * The last time anything in the workout was touched: its start, a notes edit, an exercise added or
      * changed, or a set added, edited or ticked. Null if the workout does not exist.
      */

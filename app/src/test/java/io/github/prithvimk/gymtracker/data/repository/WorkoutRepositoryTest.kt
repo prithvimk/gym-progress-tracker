@@ -21,6 +21,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -100,6 +101,46 @@ class WorkoutRepositoryTest {
         repository.finishWorkout("id-0")
 
         assertEquals(5_000L, repository.observeWorkouts().first().single().endedAt)
+    }
+
+    @Test
+    fun `resuming a finished workout makes it active again`() = runTest {
+        repository.startEmptyWorkout()
+        clock = 5_000L
+        repository.finishWorkout("id-0")
+        clock = 6_000L
+
+        assertTrue(repository.resumeWorkout("id-0"))
+
+        val active = repository.observeActiveWorkout().first()
+        assertEquals("id-0", active?.id)
+        assertNull(active?.endedAt)
+        assertEquals(1_000L, active?.startedAt)
+        assertEquals(6_000L, active?.updatedAt)
+    }
+
+    @Test
+    fun `resuming does nothing while another workout is active`() = runTest {
+        repository.startEmptyWorkout()
+        clock = 5_000L
+        repository.finishWorkout("id-0")
+        clock = 6_000L
+        repository.startEmptyWorkout()
+
+        assertFalse(repository.resumeWorkout("id-0"))
+
+        assertEquals("id-1", repository.observeActiveWorkout().first()?.id)
+        assertEquals(5_000L, repository.observeWorkouts().first().single { it.id == "id-0" }.endedAt)
+    }
+
+    @Test
+    fun `resuming a workout that is still active changes nothing`() = runTest {
+        repository.startEmptyWorkout()
+        clock = 5_000L
+
+        assertFalse(repository.resumeWorkout("id-0"))
+
+        assertEquals(1_000L, repository.observeActiveWorkout().first()?.updatedAt)
     }
 
     @Test

@@ -62,6 +62,13 @@ class WorkoutRepository(
     }
 
     /**
+     * Reopens a finished workout, as after a Finish tapped by mistake, so it carries on where it left
+     * off; the time it spent finished counts towards its duration. Returns false, changing nothing, if
+     * it is not finished or another workout is active.
+     */
+    suspend fun resumeWorkout(id: String): Boolean = workoutDao.reopen(id, updatedAt = now()) > 0
+
+    /**
      * Ends the active workout if nothing in it has been touched for [IDLE_LIMIT_MILLIS], so one left
      * running by mistake doesn't count days towards its duration. It ends at its last activity, not
      * now; one with no sets done is deleted instead, since there is nothing in it to keep.

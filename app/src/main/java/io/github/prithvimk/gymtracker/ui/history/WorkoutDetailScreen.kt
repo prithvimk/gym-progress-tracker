@@ -149,7 +149,16 @@ internal fun WorkoutDetailScreen(
                 }
             },
             actions = {
-                if (loaded != null && !editing) {
+                if (editing) {
+                    // Filled, like the logger's Finish in the same place. Edits are already saved.
+                    Button(
+                        onClick = onDone,
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        modifier = Modifier.padding(end = 8.dp),
+                    ) {
+                        Text(stringResource(R.string.workout_detail_done))
+                    }
+                } else if (loaded != null) {
                     IconButton(onClick = onEdit) {
                         Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.workout_detail_edit))
                     }
@@ -173,11 +182,8 @@ internal fun WorkoutDetailScreen(
                         MutedText(formatStartTime(loaded.session.workout.startedAt))
                         MutedText(stringResource(R.string.workout_detail_edit_hint))
                     },
-                    footer = {
-                        Button(onClick = onDone, modifier = Modifier.weight(1f)) {
-                            Text(stringResource(R.string.workout_detail_done))
-                        }
-                    },
+                    // There is no menu here to ask for them, so the notes are always there to edit.
+                    alwaysShowNotes = true,
                 )
 
             else -> WorkoutDetailContent(loaded, Modifier.weight(1f))
