@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -22,6 +23,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -689,13 +691,19 @@ private fun WorkoutTopBar(
     TopAppBar(
         title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         actions = {
-            ElapsedChip(startedAt)
-            Button(
-                onClick = onFinishClick,
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                modifier = Modifier.padding(start = 8.dp),
+            // The chip and Finish are one size: both take the width of the wider of the two.
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.width(IntrinsicSize.Max),
             ) {
-                Text(stringResource(R.string.workout_finish))
+                ElapsedChip(startedAt, Modifier.weight(1f).height(TOP_BAR_PILL_HEIGHT))
+                Button(
+                    onClick = onFinishClick,
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    modifier = Modifier.weight(1f).height(TOP_BAR_PILL_HEIGHT),
+                ) {
+                    Text(stringResource(R.string.workout_finish))
+                }
             }
             Box {
                 IconButton(onClick = { menuOpen = true }) {
@@ -752,8 +760,9 @@ private fun ElapsedChip(startedAt: Long, modifier: Modifier = Modifier) {
         modifier = modifier.clearAndSetSemantics { contentDescription = description },
     ) {
         Row(
+            horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(start = 8.dp, end = 12.dp, top = 6.dp, bottom = 6.dp),
+            modifier = Modifier.padding(start = 12.dp, end = 16.dp),
         ) {
             Icon(
                 painter = painterResource(R.drawable.ic_rest_timer),
@@ -1114,6 +1123,9 @@ private fun NotesField(
 }
 
 private const val TICK_MS = 1_000L
+
+// The height of a Material button, which the elapsed chip matches.
+private val TOP_BAR_PILL_HEIGHT = 40.dp
 private const val NOTES_MAX_LINES = 5
 private const val WORKOUT_NOTES_KEY = "workout-notes"
 
