@@ -27,6 +27,7 @@ data class WorkoutExerciseEntry(
     val repMin: Int?,
     val repMax: Int?,
     val restSeconds: Int?,
+    val tracksRpe: Boolean = false,
 )
 
 /**
@@ -220,7 +221,7 @@ interface WorkoutDao {
     @Query(
         """
         SELECT we.id, we.exerciseId, we.position, e.name, e.muscleGroup, e.equipment, we.notes,
-            we.repMin, we.repMax, we.restSeconds
+            we.repMin, we.repMax, we.restSeconds, e.tracksRpe
         FROM workout_exercises we JOIN exercises e ON e.id = we.exerciseId
         WHERE we.workoutId = :workoutId
         ORDER BY we.position

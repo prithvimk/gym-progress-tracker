@@ -33,6 +33,9 @@ interface ExerciseDao {
     @Update
     suspend fun update(exercise: Exercise)
 
+    @Query("UPDATE exercises SET tracksRpe = :tracksRpe, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun setTracksRpe(id: String, tracksRpe: Boolean, updatedAt: Long)
+
     @Query("UPDATE exercises SET archived = :archived, updatedAt = :updatedAt WHERE id = :id")
     suspend fun setArchived(id: String, archived: Boolean, updatedAt: Long)
 }

@@ -71,6 +71,7 @@ fun WorkoutDetailRoute(
                 onAddSet = editor::onAddSet,
                 onWorkoutNotesChange = editor::onWorkoutNotesChange,
                 onExerciseNotesChange = editor::onExerciseNotesChange,
+                onTracksRpeChange = editor::onTracksRpeChange,
                 setActions = editor.setActions(),
                 keypadActions = editor.keypadActions,
                 // Rest times only matter while a workout is running.

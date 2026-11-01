@@ -2,13 +2,14 @@
 
 package io.github.prithvimk.gymtracker.ui.workout
 
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -19,17 +20,18 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -38,6 +40,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
@@ -48,19 +51,29 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import io.github.prithvimk.gymtracker.R
 import io.github.prithvimk.gymtracker.data.db.entity.WorkoutSet
 import io.github.prithvimk.gymtracker.domain.matchPrevious
 import io.github.prithvimk.gymtracker.domain.model.PrType
 import io.github.prithvimk.gymtracker.domain.model.SetType
+import io.github.prithvimk.gymtracker.ui.components.RecordDisc
 import io.github.prithvimk.gymtracker.ui.format.weightNumberText
+import io.github.prithvimk.gymtracker.ui.theme.isDark
 import io.github.prithvimk.gymtracker.ui.theme.recordColors
 import io.github.prithvimk.gymtracker.ui.theme.tabular
 
@@ -80,8 +93,11 @@ class SetActions(
 /**
  * The sets of one exercise as a table, with a button to add another set. [previousSets] are the
  * exercise's sets from last session, shown beside their counterparts in the "Last" column. [badges]
- * maps each set id that holds a record to its record types, shown as a PR badge on the set. [keypad]
- * is the keypad's edit, if it is typing into one of these sets.
+ * maps each set id that holds a record to its record types, shown as a gold disc on the set. [keypad]
+ * is the keypad's edit, if it is typing into one of these sets. [showRpe] adds the RPE column.
+ *
+ * Headings and rows share one column grid ([SetColumns]), so every heading sits over its values. Rows
+ * run edge to edge, so a done row's tint spans the card.
  */
 @Composable
 fun SetTable(
@@ -92,12 +108,16 @@ fun SetTable(
     onAddSet: () -> Unit,
     modifier: Modifier = Modifier,
     badges: Map<String, List<PrType>> = emptyMap(),
+    showRpe: Boolean = false,
 ) {
     val labels = setLabels(sets.map { it.type })
     val lastTime = matchPrevious(sets, previousSets)
+    val columns = if (showRpe) SetColumns.WithRpe else SetColumns.WithoutRpe
     Column(modifier = modifier.fillMaxWidth()) {
         if (sets.isNotEmpty()) {
             SetRowLayout(
+                columns = columns,
+                modifier = Modifier.height(HEADER_HEIGHT),
                 labelCell = { HeaderText(stringResource(R.string.set_header_set)) },
                 lastCell = { HeaderText(stringResource(R.string.set_header_last)) },
                 weightCell = { HeaderText(stringResource(R.string.set_header_weight)) },
@@ -113,6 +133,7 @@ fun SetTable(
                     badges[set.id].orEmpty(),
                     keypad?.takeIf { it.target.setId == set.id },
                     actions,
+                    columns,
                 )
             }
         }
@@ -131,54 +152,105 @@ private fun SetRow(
     badge: List<PrType>,
     keypad: KeypadState?,
     actions: SetActions,
+    columns: SetColumns,
 ) {
     val completed = set.completedAt != null
     val labelText = label.text()
-    val rowColor =
-        if (completed) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow
+    val rowColor = if (completed) MaterialTheme.colorScheme.primary.copy(alpha = DONE_ROW_ALPHA) else Color.Transparent
     SetRowLayout(
-        modifier = Modifier.padding(vertical = 2.dp).background(rowColor, RoundedCornerShape(8.dp)),
-        labelCell = { RecordBadgeBox(badge) { SetLabelButton(set, labelText, actions) } },
+        columns = columns,
+        modifier = Modifier.background(rowColor).height(ROW_HEIGHT),
+        labelCell = { SetLabelButton(set, labelText, badge, actions) },
         lastCell = { LastTimeText(lastTime) },
         weightCell = {
             SetValueField(
                 set,
                 SetField.WEIGHT,
                 keypad,
+                completed,
                 stringResource(R.string.set_weight_description, labelText),
                 actions
             )
         },
         repsCell = {
-            SetValueField(set, SetField.REPS, keypad, stringResource(R.string.set_reps_description, labelText), actions)
+            SetValueField(
+                set,
+                SetField.REPS,
+                keypad,
+                completed,
+                stringResource(R.string.set_reps_description, labelText),
+                actions,
+            )
         },
         rpeCell = {
-            SetValueField(set, SetField.RPE, keypad, stringResource(R.string.set_rpe_description, labelText), actions)
+            SetValueField(
+                set,
+                SetField.RPE,
+                keypad,
+                completed,
+                stringResource(R.string.set_rpe_description, labelText),
+                actions,
+            )
         },
         doneCell = {
-            val description = stringResource(R.string.set_complete_description, labelText)
-            Checkbox(
+            DoneCheck(
                 checked = completed,
                 onCheckedChange = { actions.onCompletedChange(set.id, it) },
                 // A set needs reps before it can count as done; a done set can always be unticked.
                 enabled = completed || set.reps > 0,
-                modifier = Modifier.semantics { contentDescription = description },
+                description = stringResource(R.string.set_complete_description, labelText),
             )
         },
     )
 }
 
+/**
+ * The set's label, which opens its menu. A set holding records shows its label on a gold disc, read
+ * out as "Set 1, personal record: heaviest weight"; the disc pops in when the set ticked off sets one.
+ */
 @Composable
-private fun SetLabelButton(set: WorkoutSet, labelText: String, actions: SetActions) {
+private fun SetLabelButton(set: WorkoutSet, labelText: String, records: List<PrType>, actions: SetActions) {
     var menuOpen by remember { mutableStateOf(false) }
-    val description = stringResource(R.string.set_options, labelText)
+    val description =
+        if (records.isEmpty()) {
+            stringResource(R.string.set_label_description, labelText)
+        } else {
+            stringResource(
+                R.string.set_label_record_description,
+                labelText,
+                records.map { stringResource(it.badgeRes) }.joinToString(),
+            )
+        }
+    val optionsLabel = stringResource(R.string.set_options_action)
     Box {
         TextButton(
             onClick = { menuOpen = true },
             contentPadding = PaddingValues(0.dp),
-            modifier = Modifier.semantics { contentDescription = description },
+            modifier = Modifier.clearAndSetSemantics {
+                contentDescription = description
+                role = Role.Button
+                onClick(label = optionsLabel) {
+                    menuOpen = true
+                    true
+                }
+            },
         ) {
-            Text(labelText, style = MaterialTheme.typography.titleMedium.tabular())
+            val hasRecord = records.isNotEmpty()
+            // A record set's label sits on the disc; others keep plain text in the same place.
+            AnimatedContent(
+                targetState = hasRecord,
+                transitionSpec = {
+                    (scaleIn(spring(dampingRatio = Spring.DampingRatioMediumBouncy)) + fadeIn())
+                        .togetherWith(scaleOut() + fadeOut())
+                },
+                label = "set label",
+            ) { record ->
+                if (record) {
+                    RecordDisc(labelText)
+                } else {
+                    Text(labelText, style = MaterialTheme.typography.titleMedium.tabular())
+                }
+            }
         }
         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
             SetType.entries.forEach { type ->
@@ -200,24 +272,6 @@ private fun SetLabelButton(set: WorkoutSet, labelText: String, actions: SetActio
                 },
             )
         }
-    }
-}
-
-/** Puts a PR badge on [content] while [types] is not empty. It pops in when the set ticked off sets a record. */
-@Composable
-private fun RecordBadgeBox(types: List<PrType>, content: @Composable () -> Unit) {
-    BadgedBox(
-        badge = {
-            AnimatedVisibility(
-                visible = types.isNotEmpty(),
-                enter = scaleIn(spring(dampingRatio = Spring.DampingRatioMediumBouncy)) + fadeIn(),
-                exit = scaleOut() + fadeOut(),
-            ) {
-                RecordBadge(types)
-            }
-        },
-    ) {
-        content()
     }
 }
 
@@ -246,17 +300,25 @@ private fun SetValueField(
     set: WorkoutSet,
     field: SetField,
     keypad: KeypadState?,
+    completed: Boolean,
     description: String,
     actions: SetActions,
 ) {
     val editing = keypad?.takeIf { it.field == field }
     val text = editing?.text ?: set.fieldText(field)
     val colors = MaterialTheme.colorScheme
+    // A filled well invites typing; a done set's numbers sit straight on the row's tint.
+    val wellColor =
+        when {
+            editing != null -> if (colors.isDark) colors.surfaceContainerHighest else colors.surfaceContainerLowest
+            completed -> Color.Transparent
+            else -> if (colors.isDark) colors.surfaceContainerHigh else colors.surfaceContainer
+        }
     val borderColor =
         when {
             editing != null && !editing.isValid -> colors.error
             editing != null -> colors.primary
-            else -> colors.outline
+            else -> Color.Transparent
         }
     val focusManager = LocalFocusManager.current
     val bringIntoView = remember { BringIntoViewRequester() }
@@ -271,10 +333,12 @@ private fun SetValueField(
         contentAlignment = Alignment.Center,
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = FIELD_MIN_HEIGHT)
+            .minimumInteractiveComponentSize()
+            .height(FIELD_HEIGHT)
             .bringIntoViewRequester(bringIntoView)
             .clip(FIELD_SHAPE)
-            .border(if (editing != null) 2.dp else 1.dp, borderColor, FIELD_SHAPE)
+            .background(wellColor)
+            .border(2.dp, borderColor, FIELD_SHAPE)
             .clickable {
                 // A note may have the system keyboard up; the keypad takes over from it.
                 focusManager.clearFocus()
@@ -283,7 +347,7 @@ private fun SetValueField(
     ) {
         Text(
             text = text,
-            style = MaterialTheme.typography.bodyLarge.tabular(),
+            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp).tabular(),
             color = colors.onSurface,
             textAlign = TextAlign.Center,
             maxLines = 1,
@@ -299,8 +363,58 @@ private fun SetValueField(
     }
 }
 
+/**
+ * The done tick: a filled primary square with a check when done, an empty outlined one otherwise,
+ * inside a 48 dp touch target. Read out as a checkbox.
+ */
+@Composable
+private fun DoneCheck(checked: Boolean, onCheckedChange: (Boolean) -> Unit, enabled: Boolean, description: String) {
+    val colors = MaterialTheme.colorScheme
+    val shape = RoundedCornerShape(8.dp)
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .size(DONE_TARGET)
+            .toggleable(value = checked, enabled = enabled, role = Role.Checkbox, onValueChange = onCheckedChange)
+            .semantics { contentDescription = description },
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(DONE_BOX)
+                .alpha(if (enabled) 1f else DISABLED_ALPHA)
+                .then(
+                    if (checked) {
+                        Modifier.background(colors.primary, shape)
+                    } else {
+                        Modifier.border(2.dp, colors.outline, shape)
+                    },
+                ),
+        ) {
+            if (checked) {
+                Icon(
+                    Icons.Filled.Check,
+                    contentDescription = null,
+                    tint = colors.onPrimary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * The table's column grid: set label, last time (takes what is left), weight, reps, RPE when shown, and
+ * done. Narrower number columns make room for RPE.
+ */
+private enum class SetColumns(val weight: Dp, val reps: Dp, val rpe: Dp?) {
+    WithoutRpe(weight = 76.dp, reps = 60.dp, rpe = null),
+    WithRpe(weight = 68.dp, reps = 52.dp, rpe = 48.dp),
+}
+
 @Composable
 private fun SetRowLayout(
+    columns: SetColumns,
     labelCell: @Composable () -> Unit,
     lastCell: @Composable () -> Unit,
     weightCell: @Composable () -> Unit,
@@ -310,15 +424,15 @@ private fun SetRowLayout(
     modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = modifier.fillMaxWidth().padding(horizontal = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = modifier.fillMaxWidth().padding(horizontal = ROW_PADDING),
+        horizontalArrangement = Arrangement.spacedBy(COLUMN_GAP),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.width(LABEL_WIDTH), contentAlignment = Alignment.Center) { labelCell() }
-        Box(Modifier.weight(LAST_COLUMN), contentAlignment = Alignment.Center) { lastCell() }
-        Box(Modifier.weight(WEIGHT_COLUMN), contentAlignment = Alignment.Center) { weightCell() }
-        Box(Modifier.weight(REPS_COLUMN), contentAlignment = Alignment.Center) { repsCell() }
-        Box(Modifier.weight(RPE_COLUMN), contentAlignment = Alignment.Center) { rpeCell() }
+        Box(Modifier.weight(1f), contentAlignment = Alignment.Center) { lastCell() }
+        Box(Modifier.width(columns.weight), contentAlignment = Alignment.Center) { weightCell() }
+        Box(Modifier.width(columns.reps), contentAlignment = Alignment.Center) { repsCell() }
+        columns.rpe?.let { Box(Modifier.width(it), contentAlignment = Alignment.Center) { rpeCell() } }
         Box(Modifier.width(DONE_WIDTH), contentAlignment = Alignment.Center) { doneCell() }
     }
 }
@@ -331,19 +445,22 @@ private fun LastTimeText(lastTime: WorkoutSet?) {
             ?: stringResource(R.string.set_last_none)
     Text(
         text = text,
-        style = MaterialTheme.typography.bodySmall.tabular(),
+        style = MaterialTheme.typography.bodyMedium.tabular(),
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         textAlign = TextAlign.Center,
         maxLines = 2,
     )
 }
 
+/** A column heading: small capitals, centred over its column. */
 @Composable
 private fun HeaderText(text: String) {
     Text(
-        text = text,
-        style = MaterialTheme.typography.labelMedium,
+        text = text.uppercase(),
+        style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 0.66.sp),
         color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.Center,
+        maxLines = 1,
     )
 }
 
@@ -362,7 +479,7 @@ private val PrType.badgeRes: Int
             PrType.VOLUME -> R.string.set_record_volume
         }
 
-private val SetType.nameRes: Int
+internal val SetType.nameRes: Int
     get() =
         when (this) {
             SetType.WARMUP -> R.string.set_type_warmup
@@ -380,12 +497,16 @@ private val SetType.shortRes: Int
             SetType.FAILURE -> R.string.set_short_failure
         }
 
-private val FIELD_MIN_HEIGHT = 48.dp
-private val FIELD_SHAPE = RoundedCornerShape(4.dp)
+private val FIELD_HEIGHT = 44.dp
+private val ROW_HEIGHT = 56.dp
+private val HEADER_HEIGHT = 28.dp
+private val ROW_PADDING = 12.dp
+private val COLUMN_GAP = 8.dp
+private val DONE_TARGET = 48.dp
+private val DONE_BOX = 28.dp
+private val FIELD_SHAPE = RoundedCornerShape(10.dp)
 private const val SELECTION_ALPHA = 0.3f
-private val LABEL_WIDTH = 44.dp
-private val DONE_WIDTH = 44.dp
-private const val LAST_COLUMN = 1.1f
-private const val WEIGHT_COLUMN = 1.2f
-private const val REPS_COLUMN = 1f
-private const val RPE_COLUMN = 0.9f
+private const val DONE_ROW_ALPHA = 0.12f
+private const val DISABLED_ALPHA = 0.38f
+private val LABEL_WIDTH = 40.dp
+private val DONE_WIDTH = 48.dp

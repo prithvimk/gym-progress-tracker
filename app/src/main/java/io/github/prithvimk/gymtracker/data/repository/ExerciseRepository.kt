@@ -68,6 +68,11 @@ class ExerciseRepository(
         return ExerciseSaveResult.Saved(id)
     }
 
+    /** Turns the logger's RPE column on or off for the exercise. */
+    suspend fun setTracksRpe(id: String, tracksRpe: Boolean) {
+        dao.setTracksRpe(id, tracksRpe, now())
+    }
+
     suspend fun setArchived(id: String, archived: Boolean) {
         dao.setArchived(id, archived, now())
     }

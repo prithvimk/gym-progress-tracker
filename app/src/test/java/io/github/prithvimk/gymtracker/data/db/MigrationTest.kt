@@ -54,8 +54,28 @@ class MigrationTest {
     }
 
     @Test
+    fun `migrating 2 to 3 keeps exercises and leaves RPE off`() {
+        helper.createDatabase(TEST_DB, 2).use { db ->
+            db.execSQL(
+                "INSERT INTO exercises (id, name, muscleGroup, equipment, isCustom, archived, createdAt, updatedAt) " +
+                    "VALUES ('bench', 'Bench Press', 'CHEST', 'BARBELL', 0, 1, 5, 7)",
+            )
+        }
+
+        helper.runMigrationsAndValidate(TEST_DB, 3, true, MIGRATION_2_3).use { db ->
+            db.query("SELECT name, archived, updatedAt, tracksRpe FROM exercises WHERE id = 'bench'").use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals("Bench Press", cursor.getString(0))
+                assertEquals(1, cursor.getInt(1))
+                assertEquals(7L, cursor.getLong(2))
+                assertEquals(0, cursor.getInt(3))
+            }
+        }
+    }
+
+    @Test
     fun `every migration is registered`() {
-        assertEquals(listOf(1 to 2), ALL_MIGRATIONS.map { it.startVersion to it.endVersion })
+        assertEquals(listOf(1 to 2, 2 to 3), ALL_MIGRATIONS.map { it.startVersion to it.endVersion })
     }
 
     private companion object {
