@@ -21,6 +21,7 @@ import io.github.prithvimk.gymtracker.data.repository.WorkoutRepository
 import io.github.prithvimk.gymtracker.domain.DEFAULT_REST_SECONDS
 import io.github.prithvimk.gymtracker.domain.MAX_REST_SECONDS
 import io.github.prithvimk.gymtracker.domain.REST_STEP_SECONDS
+import io.github.prithvimk.gymtracker.domain.SessionComparison
 import io.github.prithvimk.gymtracker.domain.WorkoutSummary
 import io.github.prithvimk.gymtracker.domain.model.PrType
 import io.github.prithvimk.gymtracker.timer.RestTimer
@@ -64,13 +65,17 @@ sealed interface WorkoutUiState {
 }
 
 /**
- * A finished workout's summary and the records it set, kept until it is dismissed. [endedAutomatically]
- * is true when it was left idle and ended by the app. [savingAsRoutine] is the routine name being typed.
+ * A finished workout's summary and the records it set, kept until it is dismissed. [comparison] is
+ * against the last session of the same routine, if there is one. [endedAutomatically] is true when it
+ * was left idle and ended by the app. [savingAsRoutine] is the routine name being typed.
  */
 data class FinishedWorkout(
     val workoutId: String,
     val summary: WorkoutSummary,
+    val startedAt: Long = 0L,
+    val routineName: String? = null,
     val records: List<ExerciseRecords> = emptyList(),
+    val comparison: SessionComparison? = null,
     val endedAutomatically: Boolean = false,
     val savingAsRoutine: String? = null,
     val routineNameError: Boolean = false,
@@ -211,9 +216,18 @@ class WorkoutViewModel(
     }
 
     private suspend fun showSummary(workoutId: String, endedAutomatically: Boolean) {
-        val records = recordsByExercise(workoutRepository.observeWorkoutRecords(workoutId).first())
+        val workout = workoutRepository.observeWorkout(workoutId).first() ?: return
+        val summary = workoutRepository.summarize(workoutId) ?: return
         _finished.value =
-            workoutRepository.summarize(workoutId)?.let { FinishedWorkout(workoutId, it, records, endedAutomatically) }
+            FinishedWorkout(
+                workoutId = workoutId,
+                summary = summary,
+                startedAt = workout.startedAt,
+                routineName = workoutRepository.observeRoutineName(workoutId).first(),
+                records = recordsByExercise(workoutRepository.observeWorkoutRecords(workoutId).first()),
+                comparison = workoutRepository.compareWithPrevious(workoutId)?.takeUnless { it.isEmpty },
+                endedAutomatically = endedAutomatically,
+            )
     }
 
     fun onSummaryDismiss() {
@@ -252,6 +266,24 @@ class WorkoutViewModel(
                 RoutineSaveResult.BlankName -> _finished.update { it?.copy(routineNameError = true) }
             }
         }
+    }
+
+    // The routine waiting on confirmation before it is deleted, from its menu in the routine list.
+    private val _confirmingRoutineDelete = MutableStateFlow<RoutineSummary?>(null)
+    val confirmingRoutineDelete: StateFlow<RoutineSummary?> = _confirmingRoutineDelete.asStateFlow()
+
+    fun onDeleteRoutineClick(routine: RoutineSummary) {
+        _confirmingRoutineDelete.value = routine
+    }
+
+    fun onDeleteRoutineDismiss() {
+        _confirmingRoutineDelete.value = null
+    }
+
+    fun onDeleteRoutineConfirm() {
+        val routine = _confirmingRoutineDelete.value ?: return
+        _confirmingRoutineDelete.value = null
+        viewModelScope.launch { routineRepository.deleteRoutine(routine.routine.id) }
     }
 
     fun onDiscardClick() {

@@ -31,4 +31,13 @@ class FormatNumbersTest {
         assertEquals("12.345,5", formatVolume(12_345.5, Locale.GERMANY))
         assertEquals("82,5", formatWeight(82.5, Locale.GERMANY))
     }
+
+    @Test
+    fun `percent changes are signed with at most one decimal`() {
+        assertEquals("+3.9%", formatPercentChange(0.0389, Locale.US))
+        assertEquals("\u221212%", formatPercentChange(-0.12, Locale.US))
+        assertEquals("+100%", formatPercentChange(1.0, Locale.US))
+        assertEquals("0%", formatPercentChange(0.0, Locale.US))
+        assertEquals("0%", formatPercentChange(-0.0001, Locale.US))
+    }
 }

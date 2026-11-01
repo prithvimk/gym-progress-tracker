@@ -27,6 +27,12 @@ data class RoutineExerciseEntry(
 /** The name of one exercise in a routine, for the routine list. */
 data class RoutineExerciseName(val routineId: String, val name: String)
 
+/**
+ * A routine's finished workouts, for the routine list: when the latest one started, and how long they
+ * take on average.
+ */
+data class RoutineStats(val routineId: String, val lastStartedAt: Long, val averageDurationMillis: Long)
+
 @Dao
 interface RoutineDao {
     @Query("SELECT * FROM routines ORDER BY name COLLATE NOCASE")
@@ -40,6 +46,17 @@ interface RoutineDao {
         """
     )
     fun observeExerciseNames(): Flow<List<RoutineExerciseName>>
+
+    /** [RoutineStats] of every routine with a finished workout. */
+    @Query(
+        """
+        SELECT routineId, MAX(startedAt) AS lastStartedAt,
+            CAST(ROUND(AVG(endedAt - startedAt)) AS INTEGER) AS averageDurationMillis
+        FROM workouts WHERE routineId IS NOT NULL AND endedAt IS NOT NULL
+        GROUP BY routineId
+        """
+    )
+    fun observeStats(): Flow<List<RoutineStats>>
 
     @Query("SELECT * FROM routines WHERE id = :id")
     suspend fun getById(id: String): Routine?

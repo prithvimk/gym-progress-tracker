@@ -7,15 +7,25 @@
     <string name="placeholder_settings">Units, rest timer and export settings will live here.</string>
 
     <!-- Workout screen -->
-    <string name="workout_idle_title">Ready to train?</string>
-    <string name="workout_idle_body">Start an empty workout and add exercises as you go.</string>
-    <string name="workout_start_empty">Start empty workout</string>
+    <string name="workout_start_empty">Start an empty workout</string>
     <string name="workout_idle_routines">Routines</string>
     <string name="workout_idle_no_routines">No routines yet. Make one to start a planned session in one tap.</string>
-    <string name="workout_start_routine">Start</string>
     <string name="workout_start_routine_description">Start %1$s</string>
     <string name="workout_new_routine">New routine</string>
     <string name="workout_routine_empty">No exercises</string>
+    <string name="workout_up_next">Up next</string>
+    <plurals name="workout_routine_exercises">
+        <item quantity="one">%d exercise</item>
+        <item quantity="other">%d exercises</item>
+    </plurals>
+    <!-- %1$s is a day relative to today, e.g. "yesterday", "Tuesday" or "12 Oct". -->
+    <string name="workout_routine_last_done">last done %1$s</string>
+    <string name="workout_routine_not_done">not done yet</string>
+    <!-- The average length of a routine's workouts, e.g. "about 58 min". -->
+    <string name="workout_routine_typical_duration">about %1$s</string>
+    <string name="workout_routine_options">Options for %1$s</string>
+    <string name="workout_routine_edit">Edit</string>
+    <string name="workout_routine_delete">Delete</string>
     <string name="workout_exercise_targets">%1$d–%2$d reps</string>
     <string name="workout_exercise_rest">Rest %1$s</string>
     <string name="workout_show_rpe">Show RPE column</string>
@@ -51,9 +61,17 @@
     <string name="workout_rest_adjust">Adjust rest</string>
     <string name="workout_peek_action">Show elapsed time</string>
     <string name="workout_peek_hint">Tap the title to see how long you\'ve been training</string>
-    <string name="workout_summary_title">Workout finished</string>
+    <string name="workout_summary_title">Workout complete</string>
+    <!-- Above the summary's title: the day the workout started, then the routine, e.g. "Saturday 31 October · Push Day". -->
+    <string name="workout_summary_day_routine">%1$s · %2$s</string>
+    <string name="workout_summary_compared">Compared with last %1$s</string>
+    <string name="workout_summary_compared_untitled">Compared with last time</string>
+    <!-- The previous session's value, e.g. "was 8,100 kg" or "was 80 kg × 8". -->
+    <string name="workout_summary_was">was %1$s</string>
+    <string name="workout_summary_same">same as last time</string>
+    <string name="workout_summary_change_up">up</string>
+    <string name="workout_summary_change_down">down</string>
     <string name="workout_summary_duration">Duration</string>
-    <string name="workout_summary_exercises">Exercises</string>
     <string name="workout_summary_sets">Sets</string>
     <string name="workout_summary_volume">Volume</string>
     <string name="workout_summary_no_sets">No sets were marked done, so nothing counts towards volume.</string>
@@ -312,6 +330,9 @@
     <string name="equipment_other">Other</string>
     <!-- A weight or volume with its unit, e.g. "82.5 kg". -->
     <string name="weight_value">%1$s kg</string>
+    <!-- A past day mid-sentence, e.g. "last done today". -->
+    <string name="relative_day_today">today</string>
+    <string name="relative_day_yesterday">yesterday</string>
     <!-- A finished duration in words. -->
     <string name="duration_minutes">%1$d min</string>
     <string name="duration_hours">%1$d h</string>
