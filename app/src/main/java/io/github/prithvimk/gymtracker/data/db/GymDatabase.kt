@@ -31,7 +31,7 @@ import io.github.prithvimk.gymtracker.data.db.entity.WorkoutSet
         WorkoutSet::class,
         PersonalRecord::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 abstract class GymDatabase : RoomDatabase() {

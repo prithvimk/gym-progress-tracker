@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -36,6 +37,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -97,6 +99,7 @@ import io.github.prithvimk.gymtracker.ui.format.formatClock
 import io.github.prithvimk.gymtracker.ui.format.volumeText
 import io.github.prithvimk.gymtracker.ui.format.weightText
 import io.github.prithvimk.gymtracker.ui.theme.GymTrackerTheme
+import io.github.prithvimk.gymtracker.ui.theme.isDark
 import io.github.prithvimk.gymtracker.ui.theme.recordColors
 import io.github.prithvimk.gymtracker.ui.theme.tabular
 import kotlinx.coroutines.delay
@@ -143,6 +146,7 @@ fun WorkoutRoute(
         onWorkoutNotesChange = editor::onWorkoutNotesChange,
         onExerciseNotesChange = editor::onExerciseNotesChange,
         setActions = setActions,
+        onTracksRpeChange = editor::onTracksRpeChange,
         keypad = keypad,
         keypadActions = editor.keypadActions,
         routines = routines,
@@ -460,6 +464,7 @@ fun WorkoutScreen(
     rest: RestTimerState? = null,
     restActions: RestActions = RestActions.None,
     onRestEditClick: (workoutExerciseId: String) -> Unit = {},
+    onTracksRpeChange: (exerciseId: String, tracksRpe: Boolean) -> Unit = { _, _ -> },
 ) {
     when (state) {
         WorkoutUiState.Loading ->
@@ -485,6 +490,7 @@ fun WorkoutScreen(
                 rest = rest,
                 restActions = restActions,
                 onRestEditClick = onRestEditClick,
+                onTracksRpeChange = onTracksRpeChange,
             )
     }
 }
@@ -613,6 +619,7 @@ private fun ActiveContent(
     rest: RestTimerState? = null,
     restActions: RestActions = RestActions.None,
     onRestEditClick: (workoutExerciseId: String) -> Unit = {},
+    onTracksRpeChange: (exerciseId: String, tracksRpe: Boolean) -> Unit = { _, _ -> },
 ) {
     val startedAt = state.workout.startedAt
     // Elapsed time is derived from startedAt, so it stays right across process death.
@@ -632,6 +639,7 @@ private fun ActiveContent(
             onAddSet = onAddSet,
             onWorkoutNotesChange = onWorkoutNotesChange,
             onExerciseNotesChange = onExerciseNotesChange,
+            onTracksRpeChange = onTracksRpeChange,
             setActions = setActions,
             keypadActions = keypadActions,
             onRestEditClick = onRestEditClick,
@@ -675,6 +683,7 @@ internal class SessionEditActions(
     val onAddSet: (workoutExerciseId: String) -> Unit,
     val onWorkoutNotesChange: (notes: String) -> Unit,
     val onExerciseNotesChange: (workoutExerciseId: String, notes: String) -> Unit,
+    val onTracksRpeChange: (exerciseId: String, tracksRpe: Boolean) -> Unit,
     val setActions: SetActions,
     val keypadActions: KeypadActions,
     val onRestEditClick: ((workoutExerciseId: String) -> Unit)?,
@@ -719,8 +728,8 @@ internal fun SessionEditorContent(
         Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp), content = header)
         LazyColumn(
             modifier = Modifier.weight(1f).fillMaxWidth(),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item(key = WORKOUT_NOTES_KEY) {
                 NotesField(
@@ -758,6 +767,7 @@ internal fun SessionEditorContent(
                     onMove = { offset -> actions.onMoveExercise(entry.id, offset) },
                     onRemove = { actions.onRemoveExercise(entry.id) },
                     onRestEditClick = onRestEditClick?.let { { it(entry.id) } },
+                    onTracksRpeChange = { actions.onTracksRpeChange(entry.exerciseId, it) },
                     modifier = Modifier.animateItem(),
                 )
             }
@@ -801,34 +811,43 @@ private fun ExerciseCard(
     onMove: (offset: Int) -> Unit,
     onRemove: () -> Unit,
     onRestEditClick: (() -> Unit)?,
+    onTracksRpeChange: (tracksRpe: Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     // A note shows once it has text, or as soon as one is asked for; asking focuses it.
     var showNote by rememberSaveable(entry.id) { mutableStateOf(entry.notes.isNotEmpty()) }
     var focusNote by remember { mutableStateOf(false) }
-    val muscle = stringResource(entry.muscleGroup.labelRes)
-    val equipment = stringResource(entry.equipment.labelRes)
-    Card(modifier = modifier.fillMaxWidth()) {
-        Column {
+    // Sets with RPE already logged keep the column, even when the exercise has it turned off.
+    val showRpe = entry.tracksRpe || sets.any { it.rpe != null }
+    val colors = MaterialTheme.colorScheme
+    Card(
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (colors.isDark) colors.surfaceContainer else colors.surfaceContainerLowest,
+        ),
+        border = BorderStroke(1.dp, if (colors.isDark) colors.surfaceContainerHigh else colors.surfaceContainerHighest),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.padding(top = 4.dp)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 8.dp, end = 4.dp),
+                modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 4.dp, end = 4.dp),
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(entry.name, style = MaterialTheme.typography.titleMedium)
                     Text(
-                        text = stringResource(R.string.exercise_subtitle, muscle, equipment),
+                        // The routine's targets when it has them, else what kind of exercise it is.
+                        text = targetsText(entry, showRest = onRestEditClick != null)
+                            ?: stringResource(
+                                R.string.exercise_subtitle,
+                                stringResource(entry.muscleGroup.labelRes),
+                                stringResource(entry.equipment.labelRes),
+                            ),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = colors.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 2.dp),
                     )
-                    targetsText(entry, showRest = onRestEditClick != null)?.let {
-                        Text(
-                            text = it,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                    }
                 }
                 Box {
                     IconButton(onClick = { menuOpen = true }) {
@@ -848,6 +867,19 @@ private fun ExerciseCard(
                                 },
                             )
                         }
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    stringResource(
+                                        if (entry.tracksRpe) R.string.workout_hide_rpe else R.string.workout_show_rpe,
+                                    ),
+                                )
+                            },
+                            onClick = {
+                                menuOpen = false
+                                onTracksRpeChange(!entry.tracksRpe)
+                            },
+                        )
                         if (onRestEditClick != null) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.workout_rest_time)) },
@@ -901,8 +933,8 @@ private fun ExerciseCard(
                 keypad = keypad,
                 actions = setActions,
                 onAddSet = onAddSet,
-                modifier = Modifier.padding(start = 4.dp, end = 4.dp, bottom = 4.dp),
                 badges = badges,
+                showRpe = showRpe,
             )
         }
     }

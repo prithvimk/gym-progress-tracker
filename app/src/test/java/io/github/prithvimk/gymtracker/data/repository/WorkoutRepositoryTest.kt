@@ -140,6 +140,17 @@ class WorkoutRepositoryTest {
     }
 
     @Test
+    fun `exercise entries carry whether the exercise tracks RPE`() = runTest {
+        val workout = repository.startEmptyWorkout()
+        repository.addExercises(workout.id, listOf("bench", "ohp"))
+
+        db.exerciseDao().setTracksRpe("ohp", tracksRpe = true, updatedAt = 1L)
+
+        val entries = repository.observeExerciseEntries(workout.id).first()
+        assertEquals(listOf(false, true), entries.map { it.tracksRpe })
+    }
+
+    @Test
     fun `workout notes are saved on the active workout`() = runTest {
         repository.startEmptyWorkout()
         clock = 4_000L

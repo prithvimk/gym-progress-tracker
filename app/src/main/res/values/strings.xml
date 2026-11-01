@@ -18,6 +18,8 @@
     <string name="workout_routine_empty">No exercises</string>
     <string name="workout_exercise_targets">%1$d–%2$d reps</string>
     <string name="workout_exercise_rest">Rest %1$s</string>
+    <string name="workout_show_rpe">Show RPE column</string>
+    <string name="workout_hide_rpe">Hide RPE column</string>
     <string name="workout_rest_time">Rest time</string>
     <string name="workout_rest_dialog_title">Rest after each set of %1$s</string>
     <string name="workout_rest_dialog_save">Save</string>

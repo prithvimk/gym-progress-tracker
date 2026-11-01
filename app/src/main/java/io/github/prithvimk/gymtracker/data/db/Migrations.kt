@@ -13,4 +13,12 @@ val MIGRATION_1_2 =
         }
     }
 
-val ALL_MIGRATIONS = arrayOf(MIGRATION_1_2)
+/** Version 3: an exercise can opt in to the logger's RPE column. Off for every existing exercise. */
+val MIGRATION_2_3 =
+    object : Migration(2, 3) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE exercises ADD COLUMN tracksRpe INTEGER NOT NULL DEFAULT 0")
+        }
+    }
+
+val ALL_MIGRATIONS = arrayOf(MIGRATION_1_2, MIGRATION_2_3)

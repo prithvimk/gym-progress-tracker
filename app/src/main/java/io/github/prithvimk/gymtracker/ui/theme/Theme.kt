@@ -2,6 +2,7 @@ package io.github.prithvimk.gymtracker.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
@@ -13,6 +14,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 
@@ -164,6 +166,12 @@ fun GymTrackerTheme(
         )
     }
 }
+
+/** Whether this is a dark scheme, read from the background so it holds for dynamic colour too. */
+val ColorScheme.isDark: Boolean
+    get() = background.luminance() < HALF_LUMINANCE
+
+private const val HALF_LUMINANCE = 0.5f
 
 /**
  * This style with tabular (equal-width) figures, so numbers that change or sit in columns, such as

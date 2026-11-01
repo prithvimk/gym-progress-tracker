@@ -73,4 +73,16 @@ class ExerciseDaoTest {
         assertTrue(stored.archived)
         assertEquals(42L, stored.updatedAt)
     }
+
+    @Test
+    fun `setTracksRpe updates the flag and timestamp, and new exercises start without RPE`() = runTest {
+        dao.insert(exercise(id = "1"))
+        assertEquals(false, dao.getById("1")!!.tracksRpe)
+
+        dao.setTracksRpe("1", tracksRpe = true, updatedAt = 42L)
+
+        val stored = dao.getById("1")!!
+        assertTrue(stored.tracksRpe)
+        assertEquals(42L, stored.updatedAt)
+    }
 }

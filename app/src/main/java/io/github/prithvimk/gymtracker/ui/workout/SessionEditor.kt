@@ -23,7 +23,7 @@ import kotlinx.coroutines.launch
  */
 class SessionEditor(
     private val workoutRepository: WorkoutRepository,
-    exerciseRepository: ExerciseRepository,
+    private val exerciseRepository: ExerciseRepository,
     private val scope: CoroutineScope,
     private val session: () -> WorkoutUiState.Active?,
 ) {
@@ -98,6 +98,11 @@ class SessionEditor(
     fun onWorkoutNotesChange(notes: String) {
         val workoutId = session()?.workout?.id ?: return
         scope.launch { workoutRepository.updateWorkoutNotes(workoutId, notes) }
+    }
+
+    /** Shows or hides the RPE column for a library exercise, in this workout and every later one. */
+    fun onTracksRpeChange(exerciseId: String, tracksRpe: Boolean) {
+        scope.launch { exerciseRepository.setTracksRpe(exerciseId, tracksRpe) }
     }
 
     fun onExerciseNotesChange(workoutExerciseId: String, notes: String) {
