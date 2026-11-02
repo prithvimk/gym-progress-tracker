@@ -101,7 +101,17 @@ fun GymTrackerRoot() {
                 WORKOUT_DETAIL_ROUTE,
                 arguments = listOf(navArgument(WORKOUT_ID) { type = NavType.StringType }),
             ) {
-                WorkoutDetailRoute(onBack = { navController.popBackStack() })
+                WorkoutDetailRoute(
+                    onBack = { navController.popBackStack() },
+                    onExerciseClick = { navController.navigate(historyExerciseRoute(it)) },
+                )
+            }
+            // The same exercise detail as under Exercises, kept under History so that tab stays selected.
+            composable(
+                HISTORY_EXERCISE_ROUTE,
+                arguments = listOf(navArgument(EXERCISE_ID) { type = NavType.StringType }),
+            ) {
+                ExerciseDetailRoute(onBack = { navController.popBackStack() })
             }
             composable(TopLevelDestination.EXERCISES.route) {
                 ExercisesRoute(onExerciseClick = { navController.navigate(exerciseDetailRoute(it.id)) })
@@ -124,6 +134,10 @@ private const val EXERCISE_ID = ExerciseDetailViewModel.EXERCISE_ID_ARG
 private const val EXERCISE_DETAIL_ROUTE = "exercises/{$EXERCISE_ID}"
 
 private fun exerciseDetailRoute(id: String): String = "exercises/$id"
+
+private const val HISTORY_EXERCISE_ROUTE = "history/exercise/{$EXERCISE_ID}"
+
+private fun historyExerciseRoute(id: String): String = "history/exercise/$id"
 
 private const val WORKOUT_ID = WorkoutDetailViewModel.WORKOUT_ID_ARG
 private const val WORKOUT_DETAIL_ROUTE = "history/{$WORKOUT_ID}"

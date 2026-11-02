@@ -1,6 +1,7 @@
 package io.github.prithvimk.gymtracker.ui.exercises
 
 import io.github.prithvimk.gymtracker.data.exercise
+import io.github.prithvimk.gymtracker.domain.model.Equipment
 import io.github.prithvimk.gymtracker.domain.model.MuscleGroup
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -36,5 +37,33 @@ class ExerciseFilterTest {
         val criteria = ExerciseFilter(muscleGroup = MuscleGroup.CHEST, showArchived = true)
 
         assertEquals(listOf("1", "3"), ids(criteria))
+    }
+
+    @Test
+    fun `equipment narrows the list, alongside the muscle group`() {
+        val mixed =
+            listOf(
+                exercise(
+                    id = "a",
+                    name = "Bench Press",
+                    muscleGroup = MuscleGroup.CHEST,
+                    equipment = Equipment.BARBELL
+                ),
+                exercise(
+                    id = "b",
+                    name = "Dumbbell Press",
+                    muscleGroup = MuscleGroup.CHEST,
+                    equipment = Equipment.DUMBBELL
+                ),
+                exercise(id = "c", name = "Row", muscleGroup = MuscleGroup.BACK, equipment = Equipment.BARBELL),
+            )
+
+        assertEquals(listOf("a", "c"), mixed.filteredBy(ExerciseFilter(equipment = Equipment.BARBELL)).map { it.id })
+        assertEquals(
+            listOf("a"),
+            mixed.filteredBy(ExerciseFilter(muscleGroup = MuscleGroup.CHEST, equipment = Equipment.BARBELL)).map {
+                it.id
+            },
+        )
     }
 }

@@ -16,8 +16,11 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChip
@@ -25,13 +28,19 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SearchBarDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -39,9 +48,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.prithvimk.gymtracker.R
 import io.github.prithvimk.gymtracker.data.db.entity.Exercise
+import io.github.prithvimk.gymtracker.domain.LastTopSet
 import io.github.prithvimk.gymtracker.domain.model.Equipment
 import io.github.prithvimk.gymtracker.domain.model.MuscleGroup
+import io.github.prithvimk.gymtracker.ui.format.relativeDayText
+import io.github.prithvimk.gymtracker.ui.format.topSetText
 import io.github.prithvimk.gymtracker.ui.theme.GymTrackerTheme
+import io.github.prithvimk.gymtracker.ui.theme.tabular
 
 @Composable
 fun ExercisesRoute(
@@ -57,6 +70,7 @@ fun ExercisesRoute(
         list = list,
         onQueryChange = viewModel::onQueryChange,
         onMuscleGroupSelect = viewModel::onMuscleGroupSelect,
+        onEquipmentSelect = viewModel::onEquipmentSelect,
         onShowArchivedChange = viewModel::onShowArchivedChange,
         onExerciseClick = onExerciseClick,
         onCreateClick = viewModel::onCreateClick,
@@ -76,6 +90,7 @@ fun ExercisesScreen(
     onExerciseClick: (Exercise) -> Unit,
     onCreateClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onEquipmentSelect: (Equipment?) -> Unit = {},
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -84,8 +99,12 @@ fun ExercisesScreen(
                 style = MaterialTheme.typography.headlineMedium,
                 modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp),
             )
-            SearchField(query = filter.query, onQueryChange = onQueryChange)
-            MuscleGroupChips(selected = filter.muscleGroup, onSelect = onMuscleGroupSelect)
+            ExerciseSearchBar(query = filter.query, count = list.libraryCount, onQueryChange = onQueryChange)
+            FilterChips(
+                filter = filter,
+                onMuscleGroupSelect = onMuscleGroupSelect,
+                onEquipmentSelect = onEquipmentSelect
+            )
             if (list.hasArchived || filter.showArchived) {
                 ShowArchivedRow(checked = filter.showArchived, onCheckedChange = onShowArchivedChange)
             }
@@ -100,44 +119,104 @@ fun ExercisesScreen(
     }
 }
 
+/** A Material 3 search bar, always collapsed: the list under it is the results. */
 @Composable
-private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
-    OutlinedTextField(
-        value = query,
-        onValueChange = onQueryChange,
+private fun ExerciseSearchBar(query: String, count: Int, onQueryChange: (String) -> Unit) {
+    val focusManager = LocalFocusManager.current
+    Surface(
+        shape = SearchBarDefaults.inputFieldShape,
+        color = SearchBarDefaults.colors().containerColor,
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-        placeholder = { Text(stringResource(R.string.exercises_search)) },
-        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-        trailingIcon = {
-            if (query.isNotEmpty()) {
-                IconButton(onClick = { onQueryChange("") }) {
-                    Icon(Icons.Filled.Clear, contentDescription = stringResource(R.string.exercises_clear_search))
+    ) {
+        SearchBarDefaults.InputField(
+            query = query,
+            onQueryChange = onQueryChange,
+            onSearch = { focusManager.clearFocus() },
+            expanded = false,
+            onExpandedChange = {},
+            placeholder = {
+                Text(
+                    if (count > 0) {
+                        pluralStringResource(R.plurals.exercises_search_count, count, count)
+                    } else {
+                        stringResource(R.string.exercises_search)
+                    },
+                )
+            },
+            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+            trailingIcon = {
+                if (query.isNotEmpty()) {
+                    IconButton(onClick = { onQueryChange("") }) {
+                        Icon(Icons.Filled.Clear, contentDescription = stringResource(R.string.exercises_clear_search))
+                    }
                 }
-            }
-        },
-        singleLine = true,
-    )
+            },
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
 }
 
+/**
+ * The Equipment chip, which opens a menu, then All and a chip per muscle group. Equipment comes first
+ * so it is on screen without scrolling the row.
+ */
 @Composable
-private fun MuscleGroupChips(selected: MuscleGroup?, onSelect: (MuscleGroup?) -> Unit) {
+private fun FilterChips(
+    filter: ExerciseFilter,
+    onMuscleGroupSelect: (MuscleGroup?) -> Unit,
+    onEquipmentSelect: (Equipment?) -> Unit,
+) {
+    val selected = filter.muscleGroup
     LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        item { EquipmentChip(filter.equipment, onEquipmentSelect) }
         item {
             FilterChip(
                 selected = selected == null,
-                onClick = { onSelect(null) },
+                onClick = { onMuscleGroupSelect(null) },
                 label = { Text(stringResource(R.string.exercises_filter_all)) },
             )
         }
         items(MuscleGroup.entries) { group ->
             FilterChip(
                 selected = selected == group,
-                onClick = { onSelect(if (selected == group) null else group) },
+                onClick = { onMuscleGroupSelect(if (selected == group) null else group) },
                 label = { Text(stringResource(group.labelRes)) },
             )
+        }
+    }
+}
+
+/** "Equipment ▾", or the equipment picked, with a menu of every kind and Any equipment. */
+@Composable
+private fun EquipmentChip(equipment: Equipment?, onSelect: (Equipment?) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        FilterChip(
+            selected = equipment != null,
+            onClick = { open = true },
+            label = { Text(stringResource(equipment?.labelRes ?: R.string.exercises_equipment)) },
+            trailingIcon = { Icon(Icons.Filled.ArrowDropDown, contentDescription = null) },
+        )
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.exercises_any_equipment)) },
+                onClick = {
+                    open = false
+                    onSelect(null)
+                },
+            )
+            Equipment.entries.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(option.labelRes)) },
+                    onClick = {
+                        open = false
+                        onSelect(option)
+                    },
+                )
+            }
         }
     }
 }
@@ -178,15 +257,18 @@ private fun ExerciseList(list: ExerciseListState, onClick: (Exercise) -> Unit, m
                 contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp),
             ) {
                 items(list.exercises, key = { it.id }) { exercise ->
-                    ExerciseRow(exercise = exercise, onClick = { onClick(exercise) })
+                    ExerciseRow(exercise = exercise, last = list.lastTopSets[exercise.id], onClick = {
+                        onClick(exercise)
+                    })
                 }
             }
         }
     }
 }
 
+/** An exercise with its muscle group and equipment, and for one you've trained, its [last] top set and when. */
 @Composable
-private fun ExerciseRow(exercise: Exercise, onClick: () -> Unit) {
+private fun ExerciseRow(exercise: Exercise, last: LastTopSet?, onClick: () -> Unit) {
     val muscle = stringResource(exercise.muscleGroup.labelRes)
     val equipment = stringResource(exercise.equipment.labelRes)
     val tagRes =
@@ -197,7 +279,23 @@ private fun ExerciseRow(exercise: Exercise, onClick: () -> Unit) {
         }
     ListItem(
         headlineContent = { Text(exercise.name) },
-        supportingContent = { Text(stringResource(R.string.exercise_subtitle, muscle, equipment)) },
+        supportingContent = {
+            Column {
+                Text(stringResource(R.string.exercise_subtitle, muscle, equipment))
+                if (last != null) {
+                    Text(
+                        text =
+                        stringResource(
+                            R.string.exercises_last_top_set,
+                            topSetText(last.topSet),
+                            relativeDayText(last.startedAt),
+                        ),
+                        style = MaterialTheme.typography.bodyMedium.tabular(),
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
+        },
         trailingContent = {
             if (tagRes != null) {
                 Text(

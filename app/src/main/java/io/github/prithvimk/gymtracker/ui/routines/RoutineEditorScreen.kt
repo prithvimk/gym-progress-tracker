@@ -57,6 +57,7 @@ import io.github.prithvimk.gymtracker.ui.components.restText
 import io.github.prithvimk.gymtracker.ui.exercises.labelRes
 import io.github.prithvimk.gymtracker.ui.theme.GymTrackerTheme
 import io.github.prithvimk.gymtracker.ui.workout.ExercisePickerSheet
+import io.github.prithvimk.gymtracker.ui.workout.PickerActions
 
 @Composable
 fun RoutineEditorRoute(
@@ -92,10 +93,14 @@ fun RoutineEditorRoute(
     picker?.let { pickerState ->
         ExercisePickerSheet(
             state = pickerState,
-            onQueryChange = viewModel::onPickerQueryChange,
-            onToggle = viewModel::onPickerToggle,
-            onConfirm = viewModel::onPickerConfirm,
-            onDismiss = viewModel::onPickerDismiss,
+            actions =
+            PickerActions(
+                onQueryChange = viewModel::onPickerQueryChange,
+                onChipSelect = viewModel::onPickerChipSelect,
+                onToggle = viewModel::onPickerToggle,
+                onConfirm = viewModel::onPickerConfirm,
+                onDismiss = viewModel::onPickerDismiss,
+            ),
         )
     }
 

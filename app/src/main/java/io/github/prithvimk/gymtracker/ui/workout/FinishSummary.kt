@@ -24,7 +24,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -44,8 +43,8 @@ import io.github.prithvimk.gymtracker.domain.model.PrType
 import io.github.prithvimk.gymtracker.ui.components.StatTile
 import io.github.prithvimk.gymtracker.ui.format.durationText
 import io.github.prithvimk.gymtracker.ui.format.percentChangeText
+import io.github.prithvimk.gymtracker.ui.format.topSetText
 import io.github.prithvimk.gymtracker.ui.format.volumeText
-import io.github.prithvimk.gymtracker.ui.format.weightText
 import io.github.prithvimk.gymtracker.ui.history.formatDate
 import io.github.prithvimk.gymtracker.ui.theme.GymTrackerTheme
 import io.github.prithvimk.gymtracker.ui.theme.tabular
@@ -245,14 +244,6 @@ private fun ComparisonRow(label: String, value: String, was: String, change: Top
             )
         }
     }
-}
-
-/** "82.5 kg × 8", or "12 reps" for a bodyweight set. */
-@Composable
-private fun topSetText(top: TopSet): String = if (top.weightKg > 0) {
-    stringResource(R.string.exercise_detail_set, weightText(top.weightKg), top.reps)
-} else {
-    pluralStringResource(R.plurals.exercise_detail_set_reps, top.reps, top.reps)
 }
 
 @Preview(showBackground = true)

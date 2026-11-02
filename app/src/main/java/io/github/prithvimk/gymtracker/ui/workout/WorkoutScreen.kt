@@ -265,10 +265,14 @@ internal fun SessionEditorDialogs(editor: SessionEditor) {
     picker?.let { pickerState ->
         ExercisePickerSheet(
             state = pickerState,
-            onQueryChange = editor::onPickerQueryChange,
-            onToggle = editor::onPickerToggle,
-            onConfirm = editor::onPickerConfirm,
-            onDismiss = editor::onPickerDismiss,
+            actions =
+            PickerActions(
+                onQueryChange = editor::onPickerQueryChange,
+                onChipSelect = editor::onPickerChipSelect,
+                onToggle = editor::onPickerToggle,
+                onConfirm = editor::onPickerConfirm,
+                onDismiss = editor::onPickerDismiss,
+            ),
         )
     }
 

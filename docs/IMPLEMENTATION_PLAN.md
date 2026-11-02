@@ -132,7 +132,8 @@ Settled while planning, to keep the picks from contradicting each other:
 - **D2 is part done** (#23): the aligned set table, gold PR disc, keypad context line and RPE opt-in (schema v3: `exercises.tracksRpe`, which Phase 5's JSON export must include). The workout detail's editor already shares these. Then the compact top bar and Resume workout on the finish summary (#25).
 - **D2 is done**: the rest chip and peek replaced the rest bar. On a Pixel 7 with the bottom bar, the keypad open and a rest running, all four sets of a four-set exercise show under its header.
 - **D3 is done**: the Up next card, routine rows with last done and typical duration, and the full-screen finish summary with its comparison against the routine's last session.
-- **Next up:** D4 and D5, in any order.
+- **D4 is done**: History cards and the volume-tinted calendar, the workout detail's tiles and links, the Exercises list with last top sets, the e1RM hero and record tiles, and the picker's chips, numbers and tray.
+- **Next up:** D5.
 
 ## Phase D1: Design foundations
 
@@ -177,12 +178,12 @@ Done when: finishing a routine shows its volume change against the last time you
 
 Goal: past work and progress read at a glance.
 
-- [ ] History cards: date line with a gold PR chip, routine name, one row of stats, and the first few exercises; the List / Calendar switch becomes a top-bar icon (F10)
-- [ ] Calendar: trained days tinted in three steps by volume (thirds of the month's highest), selected day filled, today always ringed (F11)
-- [ ] Workout detail: stat tiles, Delete moves to the menu, undone sets collapse to one line, exercise names open their detail (F12)
-- [ ] Exercises: Material 3 search bar, muscle chips plus an Equipment chip, and each trained exercise's last top set and when; no monogram avatars (F13)
-- [ ] Exercise detail: e1RM hero with its 30-day change and a sparkline, records as a 2×2 grid of tiles with dates, then history (F14)
-- [ ] Exercise picker: chips with Recent first, numbered picks in tick order, and a tray of picks above the Add button (F16)
+- [x] History cards: date line with a gold PR chip, routine name, one row of stats, and the first few exercises; the List / Calendar switch becomes a top-bar icon (F10) (the first three exercises, then "+N"; the icon sits beside the History title and shows the view it switches to)
+- [x] Calendar: trained days tinted in three steps by volume (thirds of the month's highest), selected day filled, today always ringed (F11) (by each day's total volume; a day that moved no weight is the first step; the steps run from half-way to the primary container up to half-way on to primary, which is kept for the picked day; a "Less … More volume" key sits under the grid)
+- [x] Workout detail: stat tiles, Delete moves to the menu, undone sets collapse to one line, exercise names open their detail (F12) (an exercise with nothing done is a one-line "Skipped" card; others end with "N planned sets skipped"; the exercise detail opens under History, per the design decision)
+- [x] Exercises: Material 3 search bar, muscle chips plus an Equipment chip, and each trained exercise's last top set and when; no monogram avatars (F13) (the search bar reads "Search 69 exercises"; Equipment comes first in the chip row so it is on screen, and opens a menu; the last top set is the heaviest non-warm-up set of the last finished workout with the exercise, then the most reps)
+- [x] Exercise detail: e1RM hero with its 30-day change and a sparkline, records as a 2×2 grid of tiles with dates, then history (F14) (the hero shows the latest session's best e1RM; the change is against the last session at least 30 days old and is hidden until there is one; the sparkline has every session's best e1RM)
+- [x] Exercise picker: chips with Recent first, numbered picks in tick order, and a tray of picks above the Add button (F16) (Recent is the exercises of the last 5 finished workouts and is on by default when there are any; a search under Recent looks through the whole library, under a muscle chip only within it; tapping a pick in the tray removes it; the routine editor's picker gets the same)
 
 Done when: the Exercises list shows your last top set for every exercise you've trained.
 

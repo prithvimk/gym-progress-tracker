@@ -1,11 +1,13 @@
 package io.github.prithvimk.gymtracker.ui.exercises
 
 import io.github.prithvimk.gymtracker.data.db.entity.Exercise
+import io.github.prithvimk.gymtracker.domain.model.Equipment
 import io.github.prithvimk.gymtracker.domain.model.MuscleGroup
 
 data class ExerciseFilter(
     val query: String = "",
     val muscleGroup: MuscleGroup? = null,
+    val equipment: Equipment? = null,
     val showArchived: Boolean = false,
 )
 
@@ -17,7 +19,8 @@ fun List<Exercise>.filteredBy(criteria: ExerciseFilter): List<Exercise> {
     return filter { exercise ->
         val visible = criteria.showArchived || !exercise.archived
         val inGroup = criteria.muscleGroup == null || exercise.muscleGroup == criteria.muscleGroup
+        val withEquipment = criteria.equipment == null || exercise.equipment == criteria.equipment
         val matches = words.all { exercise.name.contains(it, ignoreCase = true) }
-        visible && inGroup && matches
+        visible && inGroup && withEquipment && matches
     }
 }
