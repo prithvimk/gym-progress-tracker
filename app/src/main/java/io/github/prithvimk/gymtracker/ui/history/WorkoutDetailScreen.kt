@@ -3,10 +3,12 @@
 package io.github.prithvimk.gymtracker.ui.history
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -14,12 +16,16 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -30,7 +36,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
@@ -41,6 +49,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.prithvimk.gymtracker.R
 import io.github.prithvimk.gymtracker.domain.WorkoutSummary
+import io.github.prithvimk.gymtracker.ui.components.StatTile
 import io.github.prithvimk.gymtracker.ui.exercises.HistorySetRow
 import io.github.prithvimk.gymtracker.ui.exercises.labelRes
 import io.github.prithvimk.gymtracker.ui.format.durationText
@@ -55,6 +64,7 @@ import io.github.prithvimk.gymtracker.ui.workout.SessionEditorDialogs
 @Composable
 fun WorkoutDetailRoute(
     onBack: () -> Unit,
+    onExerciseClick: (exerciseId: String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: WorkoutDetailViewModel = viewModel(factory = WorkoutDetailViewModel.factory),
 ) {
@@ -89,6 +99,7 @@ fun WorkoutDetailRoute(
         onEdit = viewModel::onEditClick,
         onDone = viewModel::onDoneClick,
         onDelete = viewModel::onDeleteClick,
+        onExerciseClick = onExerciseClick,
         editActions = editActions,
         keypad = keypad,
         modifier = modifier,
@@ -125,6 +136,7 @@ internal fun WorkoutDetailScreen(
     editActions: SessionEditActions,
     modifier: Modifier = Modifier,
     keypad: KeypadState? = null,
+    onExerciseClick: (exerciseId: String) -> Unit = {},
 ) {
     val loaded = state as? WorkoutDetailState.Loaded
     val editing = loaded?.editing == true
@@ -162,8 +174,25 @@ internal fun WorkoutDetailScreen(
                     IconButton(onClick = onEdit) {
                         Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.workout_detail_edit))
                     }
-                    IconButton(onClick = onDelete) {
-                        Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.workout_detail_delete))
+                    // Delete sits in the menu, a deliberate tap away from Edit.
+                    var menuOpen by remember { mutableStateOf(false) }
+                    Box {
+                        IconButton(onClick = { menuOpen = true }) {
+                            Icon(
+                                Icons.Filled.MoreVert,
+                                contentDescription = stringResource(R.string.workout_detail_more)
+                            )
+                        }
+                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.workout_detail_delete)) },
+                                leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null) },
+                                onClick = {
+                                    menuOpen = false
+                                    onDelete()
+                                },
+                            )
+                        }
                     }
                 }
             },
@@ -186,13 +215,17 @@ internal fun WorkoutDetailScreen(
                     alwaysShowNotes = true,
                 )
 
-            else -> WorkoutDetailContent(loaded, Modifier.weight(1f))
+            else -> WorkoutDetailContent(loaded, onExerciseClick, Modifier.weight(1f))
         }
     }
 }
 
 @Composable
-private fun WorkoutDetailContent(state: WorkoutDetailState.Loaded, modifier: Modifier = Modifier,) {
+private fun WorkoutDetailContent(
+    state: WorkoutDetailState.Loaded,
+    onExerciseClick: (exerciseId: String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val workout = state.session.workout
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -200,9 +233,9 @@ private fun WorkoutDetailContent(state: WorkoutDetailState.Loaded, modifier: Mod
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 MutedText(formatStartTime(workout.startedAt))
-                Text(text = statsText(state.summary), style = MaterialTheme.typography.bodyLarge)
+                SummaryTiles(state.summary)
             }
         }
         if (state.records.isNotEmpty()) {
@@ -220,46 +253,82 @@ private fun WorkoutDetailContent(state: WorkoutDetailState.Loaded, modifier: Mod
         }
         items(state.exercises, key = { it.entry.id }) { exercise ->
             val notDone = state.session.sets[exercise.entry.id].orEmpty().size - exercise.sets.size
-            DoneExerciseCard(exercise, notDone)
+            DoneExerciseCard(exercise, notDone, onClick = { onExerciseClick(exercise.entry.exerciseId) })
         }
     }
 }
 
-/** One exercise's done sets, with its note and how many sets were left undone. */
+/**
+ * One exercise's done sets, with its note and how many planned sets were skipped. An exercise with
+ * nothing done is a single "Skipped" line. Its name opens the exercise's history.
+ */
 @Composable
-private fun DoneExerciseCard(exercise: DoneExercise, notDone: Int) {
+private fun DoneExerciseCard(exercise: DoneExercise, notDone: Int, onClick: () -> Unit) {
     val entry = exercise.entry
+    val skipped = exercise.sets.isEmpty()
     Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(entry.name, style = MaterialTheme.typography.titleMedium)
-            MutedText(
-                stringResource(
-                    R.string.exercise_subtitle,
-                    stringResource(entry.muscleGroup.labelRes),
-                    stringResource(entry.equipment.labelRes),
-                ),
+        val openLabel = stringResource(R.string.workout_detail_open_exercise)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClickLabel = openLabel, onClick = onClick)
+                .padding(start = 16.dp, end = 12.dp, top = if (skipped) 12.dp else 16.dp, bottom = 12.dp),
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(entry.name, style = MaterialTheme.typography.titleMedium)
+                if (!skipped) {
+                    MutedText(
+                        stringResource(
+                            R.string.exercise_subtitle,
+                            stringResource(entry.muscleGroup.labelRes),
+                            stringResource(entry.equipment.labelRes),
+                        ),
+                    )
+                }
+            }
+            if (skipped) MutedText(stringResource(R.string.workout_detail_skipped))
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 4.dp),
             )
-            if (entry.notes.isNotBlank()) Text(entry.notes, style = MaterialTheme.typography.bodyMedium)
+        }
+        if (!skipped) {
             Column(
-                modifier = Modifier.padding(top = 8.dp),
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                if (exercise.sets.isEmpty()) MutedText(stringResource(R.string.workout_detail_no_sets))
+                if (entry.notes.isNotBlank()) {
+                    Text(
+                        entry.notes,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
+                }
                 exercise.sets.forEach { HistorySetRow(it) }
-                if (notDone > 0) MutedText(pluralStringResource(R.plurals.workout_detail_not_done, notDone, notDone))
+                if (notDone > 0) {
+                    MutedText(pluralStringResource(R.plurals.workout_detail_not_done, notDone, notDone))
+                }
             }
         }
     }
 }
 
-/** "1 h 2 min · 18 sets · 8,420 kg", the same as the workout's card in History. */
+/** Duration, volume and sets as tiles, the same as on the finish summary. */
 @Composable
-private fun statsText(summary: WorkoutSummary): String = stringResource(
-    R.string.history_workout_stats,
-    durationText(summary.durationMillis),
-    pluralStringResource(R.plurals.history_workout_sets, summary.setCount, summary.setCount),
-    volumeText(summary.volumeKg),
-)
+private fun SummaryTiles(summary: WorkoutSummary) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        StatTile(
+            durationText(summary.durationMillis),
+            stringResource(R.string.workout_summary_duration),
+            Modifier.weight(1f)
+        )
+        StatTile(volumeText(summary.volumeKg), stringResource(R.string.workout_summary_volume), Modifier.weight(1.3f))
+        StatTile(summary.setCount.toString(), stringResource(R.string.workout_summary_sets), Modifier.weight(0.7f))
+    }
+}
 
 @Composable
 private fun MutedText(text: String, modifier: Modifier = Modifier) {

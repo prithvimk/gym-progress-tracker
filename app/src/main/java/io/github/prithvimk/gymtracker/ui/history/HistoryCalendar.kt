@@ -6,6 +6,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
+import kotlin.math.ceil
 
 /**
  * One month of the History calendar. [days] fills whole weeks starting on [firstDayOfWeek], with
@@ -24,6 +25,9 @@ data class HistoryMonth(
     val listed: List<WorkoutHistoryRow>
         get() = selectedDay?.let { workouts[it].orEmpty() }
             ?: workouts.values.flatten().sortedByDescending { it.startedAt }
+
+    /** Each trained day's volume step, from 1 to [VOLUME_LEVELS]; see [volumeLevels]. */
+    val volumeLevels: Map<LocalDate, Int> by lazy { volumeLevels(workouts) }
 
     /** Whether a later month can be shown: not past the current one. */
     val hasNext: Boolean get() = month < YearMonth.from(today)
@@ -48,6 +52,21 @@ fun workoutsByDay(
     .filter { (day, _) -> YearMonth.from(day) == month }
     .groupBy({ it.first }, { it.second })
     .mapValues { (_, rows) -> rows.sortedByDescending { it.startedAt } }
+
+/** How many steps the calendar tints trained days in. */
+const val VOLUME_LEVELS = 3
+
+/**
+ * Each day's step by its total volume: which third of the busiest day's volume it reaches, from 1 to
+ * [VOLUME_LEVELS]. A trained day that moved no weight, such as bodyweight work, is step 1.
+ */
+fun volumeLevels(workouts: Map<LocalDate, List<WorkoutHistoryRow>>): Map<LocalDate, Int> {
+    val volumes = workouts.mapValues { (_, rows) -> rows.sumOf { it.volumeKg } }
+    val busiest = volumes.values.maxOrNull() ?: return emptyMap()
+    return volumes.mapValues { (_, volume) ->
+        if (busiest <= 0.0) 1 else ceil(VOLUME_LEVELS * volume / busiest).toInt().coerceIn(1, VOLUME_LEVELS)
+    }
+}
 
 /** The weekdays in calendar order from [firstDayOfWeek], for the header row. */
 fun weekdays(firstDayOfWeek: DayOfWeek): List<DayOfWeek> = List(DAYS_IN_WEEK) { firstDayOfWeek.plus(it.toLong()) }

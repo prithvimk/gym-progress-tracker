@@ -31,12 +31,13 @@ sealed interface HistoryUiState {
 
     /**
      * Finished workouts by week, newest first, and the calendar's month. [weeks] is empty until the
-     * first workout is finished.
+     * first workout is finished. [exerciseNames] holds each workout's exercises in order, by workout id.
      */
     data class Loaded(
         val weeks: List<HistoryWeek>,
         val view: HistoryView = HistoryView.LIST,
         val calendar: HistoryMonth? = null,
+        val exerciseNames: Map<String, List<String>> = emptyMap(),
     ) : HistoryUiState
 }
 
@@ -55,7 +56,12 @@ class HistoryViewModel(
     // Zone, week start and today are read on every change, so a list kept open over midnight or a
     // time zone change still groups the next workout right.
     val state: StateFlow<HistoryUiState> =
-        combine(workoutRepository.observeHistory(), view, pick) { rows, currentView, currentPick ->
+        combine(
+            workoutRepository.observeHistory(),
+            workoutRepository.observeHistoryExerciseNames(),
+            view,
+            pick,
+        ) { rows, names, currentView, currentPick ->
             val currentZone = zone()
             val weekStart = firstDayOfWeek()
             val currentDay = today(currentZone)
@@ -72,6 +78,7 @@ class HistoryViewModel(
                     today = currentDay,
                     selectedDay = currentPick.day,
                 ),
+                exerciseNames = names,
             )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), HistoryUiState.Loading)
 

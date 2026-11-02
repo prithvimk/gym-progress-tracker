@@ -22,15 +22,25 @@ sealed interface ExerciseDetailState {
     /** No exercise has the id, so there is nothing to show and the screen closes. */
     data object Missing : ExerciseDetailState
 
-    /** [sessions] is newest first, and empty until a set of the exercise is completed. */
-    data class Loaded(val exercise: Exercise, val records: List<RecordBest>, val sessions: List<HistorySession>) :
-        ExerciseDetailState
+    /**
+     * [sessions] is newest first, and empty until a set of the exercise is completed. [e1rm] is the best
+     * estimated 1RM of each session, oldest first, and [e1rmChange] how the latest moved over the last
+     * 30 days, if there is a session that old.
+     */
+    data class Loaded(
+        val exercise: Exercise,
+        val records: List<RecordBest>,
+        val sessions: List<HistorySession>,
+        val e1rm: List<E1rmPoint> = emptyList(),
+        val e1rmChange: Double? = null,
+    ) : ExerciseDetailState
 }
 
 class ExerciseDetailViewModel(
     savedStateHandle: SavedStateHandle,
     exerciseRepository: ExerciseRepository,
     workoutRepository: WorkoutRepository,
+    now: () -> Long = System::currentTimeMillis,
 ) : ViewModel() {
     private val exerciseId: String = checkNotNull(savedStateHandle.get<String>(EXERCISE_ID_ARG))
 
@@ -45,7 +55,14 @@ class ExerciseDetailViewModel(
             if (exercise == null) {
                 ExerciseDetailState.Missing
             } else {
-                ExerciseDetailState.Loaded(exercise, standingRecords(records, rows), historySessions(rows, records))
+                val points = e1rmPoints(rows)
+                ExerciseDetailState.Loaded(
+                    exercise = exercise,
+                    records = standingRecords(records, rows),
+                    sessions = historySessions(rows, records),
+                    e1rm = points,
+                    e1rmChange = e1rmChange(points, now()),
+                )
             }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), ExerciseDetailState.Loading)
 

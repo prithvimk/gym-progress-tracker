@@ -54,10 +54,15 @@ data class SessionComparison(
  * The top set among the completed sets that aren't warm-ups: the heaviest, and of the heaviest the
  * one with the most reps. Null if there is no such set.
  */
-fun topSet(sets: List<WorkoutSet>): TopSet? = sets
-    .filter { it.completedAt != null && it.type != SetType.WARMUP }
-    .maxWithOrNull(compareBy<WorkoutSet> { it.weightKg }.thenBy { it.reps })
-    ?.let { TopSet(it.weightKg, it.reps) }
+fun topSet(sets: List<WorkoutSet>): TopSet? = bestOf(
+    sets.filter { it.completedAt != null && it.type != SetType.WARMUP }.map { TopSet(it.weightKg, it.reps) },
+)
+
+/** The heaviest of [sets], and of the heaviest the one with the most reps. */
+fun bestOf(sets: List<TopSet>): TopSet? = sets.maxWithOrNull(compareBy<TopSet> { it.weightKg }.thenBy { it.reps })
+
+/** An exercise's top set from the last finished workout it was done in, and when that workout started. */
+data class LastTopSet(val topSet: TopSet, val startedAt: Long)
 
 /**
  * Compares a session with the previous one. Exercises are matched by library exercise, an exercise

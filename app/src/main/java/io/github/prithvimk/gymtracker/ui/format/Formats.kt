@@ -64,6 +64,18 @@ fun weightText(kg: Double): String = stringResource(R.string.weight_value, forma
 @ReadOnlyComposable
 fun volumeText(kg: Double): String = stringResource(R.string.weight_value, formatVolume(kg, currentLocale()))
 
+/** A change in a volume or estimate with its sign and unit, e.g. "+4.2 kg" or "−2.5 kg". */
+@Composable
+@ReadOnlyComposable
+fun signedVolumeText(kg: Double): String {
+    val text = volumeText(kotlin.math.abs(kg))
+    return when {
+        kg > 0 -> "+$text"
+        kg < 0 -> "\u2212$text"
+        else -> text
+    }
+}
+
 /** A weight's number alone, for compact columns where the unit is in the header, e.g. "80" of "80 × 8". */
 @Composable
 @ReadOnlyComposable
