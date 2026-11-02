@@ -69,6 +69,25 @@ fun volumeText(kg: Double): String = stringResource(R.string.weight_value, forma
 @ReadOnlyComposable
 fun weightNumberText(kg: Double): String = formatWeight(kg, currentLocale())
 
+/**
+ * A change given as a fraction, as a signed percentage with at most one decimal: "+3.9%", "−12%".
+ * One that rounds to nothing reads "0%", with no sign.
+ */
+fun formatPercentChange(fraction: Double, locale: Locale = Locale.getDefault()): String {
+    val format = NumberFormat.getPercentInstance(locale).apply { maximumFractionDigits = 1 }
+    val text = format.format(kotlin.math.abs(fraction))
+    return when {
+        text == format.format(0.0) -> text
+        fraction > 0 -> "+$text"
+        else -> "\u2212$text"
+    }
+}
+
+/** [formatPercentChange] in the app's locale. */
+@Composable
+@ReadOnlyComposable
+fun percentChangeText(fraction: Double): String = formatPercentChange(fraction, currentLocale())
+
 @Composable
 @ReadOnlyComposable
 private fun currentLocale(): Locale = LocalConfiguration.current.locales[0]

@@ -6,14 +6,25 @@ import io.github.prithvimk.gymtracker.data.db.dao.WorkoutDao
 import io.github.prithvimk.gymtracker.data.db.entity.Routine
 import io.github.prithvimk.gymtracker.data.db.entity.RoutineExercise
 import io.github.prithvimk.gymtracker.domain.ExerciseTargets
+import io.github.prithvimk.gymtracker.domain.RoutineRotation
 import io.github.prithvimk.gymtracker.domain.planFromWorkout
 import java.util.UUID
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 
-/** A routine with the names of its exercises in order, for the routine list. */
-data class RoutineSummary(val routine: Routine, val exerciseNames: List<String>)
+/**
+ * A routine as the routine list shows it: the names of its exercises in order, when its latest
+ * workout started, and how long its workouts take on average. Both are null until it has been done.
+ */
+data class RoutineSummary(
+    val routine: Routine,
+    val exerciseNames: List<String>,
+    override val lastDoneAt: Long? = null,
+    val typicalDurationMillis: Long? = null,
+) : RoutineRotation {
+    override val exerciseCount: Int get() = exerciseNames.size
+}
 
 /** A routine as the editor loads it. */
 data class RoutineDetail(val routine: Routine, val exercises: List<RoutineExerciseEntry>)
@@ -36,11 +47,20 @@ class RoutineRepository(
 ) {
     fun observeRoutines(): Flow<List<Routine>> = dao.observeAll()
 
-    /** Every routine, sorted by name, with its exercise names. */
+    /** Every routine, sorted by name, with its exercise names and when and how long it was done. */
     fun observeRoutineSummaries(): Flow<List<RoutineSummary>> =
-        combine(dao.observeAll(), dao.observeExerciseNames()) { routines, names ->
+        combine(dao.observeAll(), dao.observeExerciseNames(), dao.observeStats()) { routines, names, stats ->
             val byRoutine = names.groupBy({ it.routineId }, { it.name })
-            routines.map { RoutineSummary(it, byRoutine[it.id].orEmpty()) }
+            val statsByRoutine = stats.associateBy { it.routineId }
+            routines.map {
+                val routineStats = statsByRoutine[it.id]
+                RoutineSummary(
+                    routine = it,
+                    exerciseNames = byRoutine[it.id].orEmpty(),
+                    lastDoneAt = routineStats?.lastStartedAt,
+                    typicalDurationMillis = routineStats?.averageDurationMillis,
+                )
+            }
         }
 
     fun observeRoutineExercises(routineId: String): Flow<List<RoutineExercise>> = dao.observeExercises(routineId)

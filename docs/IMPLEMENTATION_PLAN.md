@@ -131,7 +131,8 @@ Settled while planning, to keep the picks from contradicting each other:
 - **D1 is done** (#22).
 - **D2 is part done** (#23): the aligned set table, gold PR disc, keypad context line and RPE opt-in (schema v3: `exercises.tracksRpe`, which Phase 5's JSON export must include). The workout detail's editor already shares these. Then the compact top bar and Resume workout on the finish summary (#25).
 - **D2 is done**: the rest chip and peek replaced the rest bar. On a Pixel 7 with the bottom bar, the keypad open and a rest running, all four sets of a four-set exercise show under its header.
-- **Next up:** D3, D4 and D5, in any order.
+- **D3 is done**: the Up next card, routine rows with last done and typical duration, and the full-screen finish summary with its comparison against the routine's last session.
+- **Next up:** D4 and D5, in any order.
 
 ## Phase D1: Design foundations
 
@@ -165,10 +166,10 @@ Done when: on a Pixel 7, with the keypad open and a rest running, at least four 
 
 Goal: one tap to the right session, and a finish screen that shows progress.
 
-- [ ] Workout tab: "Up next" card for the routine done least recently (never-done routines first, then routine order) with a Start button (F09)
-- [ ] Routine rows with exercise count, last done, and typical duration (the average of past sessions, hidden until there is one), a play button and a ⋮ menu; "Start an empty workout" becomes a text button (F09)
-- [ ] Full-screen finish summary: duration, volume and set tiles; the gold records card with its pop-in; Done as the main button and Save as routine as the secondary one; the note when the app ended an idle workout (F08)
-- [ ] "Compared with last time" on the summary: volume change and each exercise's top set against the previous session of the same routine, hidden for empty workouts (F08)
+- [x] Workout tab: "Up next" card for the routine done least recently (never-done routines first, then routine order) with a Start button (F09) (routines with no exercises are never suggested; the card also has the ⋮ menu, tapping it opens the editor like a row, and the routine it suggests leaves the list below; the tab now has a "Workout" title like History and Exercises)
+- [x] Routine rows with exercise count, last done, and typical duration (the average of past sessions, hidden until there is one), a play button and a ⋮ menu; "Start an empty workout" becomes a text button (F09) ("last done" reads today, yesterday, a weekday within the week, then a date; Delete in the menu asks first; the rows no longer list exercise names, which the Up next card still does)
+- [x] Full-screen finish summary: duration, volume and set tiles; the gold records card with its pop-in; Done as the main button and Save as routine as the secondary one; the note when the app ended an idle workout (F08) (it takes the Workout tab's place, under its day and routine name, until Done or Back; Resume workout sits at the top, away from Done)
+- [x] "Compared with last time" on the summary: volume change and each exercise's top set against the previous session of the same routine, hidden for empty workouts (F08) (the previous session is the last finished one of the routine with a set done; a top set is the heaviest completed set that isn't a warm-up, then the most reps; an arrow shows only when weight and reps agree, so 85 × 5 against 80 × 8 gets none; exercises not in both sessions are left out, and so is the volume change when the last session moved no weight)
 
 Done when: finishing a routine shows its volume change against the last time you did it.
 

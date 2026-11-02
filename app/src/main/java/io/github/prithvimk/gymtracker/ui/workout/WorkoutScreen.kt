@@ -14,28 +14,21 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -69,10 +62,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -80,12 +71,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.prithvimk.gymtracker.R
 import io.github.prithvimk.gymtracker.data.db.dao.WorkoutExerciseEntry
+import io.github.prithvimk.gymtracker.data.db.entity.Routine
 import io.github.prithvimk.gymtracker.data.db.entity.Workout
 import io.github.prithvimk.gymtracker.data.db.entity.WorkoutSet
 import io.github.prithvimk.gymtracker.data.repository.RoutineSummary
 import io.github.prithvimk.gymtracker.domain.DEFAULT_REST_SECONDS
 import io.github.prithvimk.gymtracker.domain.MAX_REST_SECONDS
-import io.github.prithvimk.gymtracker.domain.WorkoutSummary
 import io.github.prithvimk.gymtracker.domain.model.Equipment
 import io.github.prithvimk.gymtracker.domain.model.MuscleGroup
 import io.github.prithvimk.gymtracker.domain.model.PrType
@@ -94,13 +85,11 @@ import io.github.prithvimk.gymtracker.timer.RestTimerState
 import io.github.prithvimk.gymtracker.ui.components.Stepper
 import io.github.prithvimk.gymtracker.ui.components.restText
 import io.github.prithvimk.gymtracker.ui.exercises.labelRes
-import io.github.prithvimk.gymtracker.ui.format.durationText
 import io.github.prithvimk.gymtracker.ui.format.volumeText
 import io.github.prithvimk.gymtracker.ui.format.weightText
 import io.github.prithvimk.gymtracker.ui.theme.GymTrackerTheme
 import io.github.prithvimk.gymtracker.ui.theme.isDark
 import io.github.prithvimk.gymtracker.ui.theme.recordColors
-import io.github.prithvimk.gymtracker.ui.theme.tabular
 import kotlinx.coroutines.flow.first
 
 /** The Workout tab. [onEditRoutine] opens the routine editor on a routine, or on a new one for null. */
@@ -120,6 +109,7 @@ fun WorkoutRoute(
     val restEdit by viewModel.restEdit.collectAsStateWithLifecycle()
     val idleDiscarded by viewModel.idleDiscarded.collectAsStateWithLifecycle()
     val showPeekHint by viewModel.showPeekHint.collectAsStateWithLifecycle()
+    val confirmingRoutineDelete by viewModel.confirmingRoutineDelete.collectAsStateWithLifecycle()
     // Each time the app comes back, a workout left running by mistake is ended.
     LifecycleResumeEffect(viewModel) {
         viewModel.onResume()
@@ -131,52 +121,55 @@ fun WorkoutRoute(
     // Ticking a set in the logger also starts the rest timer.
     val setActions = remember(viewModel) { editor.setActions(onCompletedChange = viewModel::onSetCompletedChange) }
 
-    WorkoutScreen(
-        state = state,
-        onStartClick = {
-            requestNotifications()
-            viewModel.onStartClick()
-        },
-        onFinishClick = viewModel::onFinishClick,
-        onDiscardClick = viewModel::onDiscardClick,
-        onAddExercisesClick = editor::onAddExercisesClick,
-        onMoveExercise = editor::onMoveExercise,
-        onRemoveExercise = editor::onRemoveExercise,
-        onAddSet = editor::onAddSet,
-        onWorkoutNotesChange = editor::onWorkoutNotesChange,
-        onExerciseNotesChange = editor::onExerciseNotesChange,
-        setActions = setActions,
-        onTracksRpeChange = editor::onTracksRpeChange,
-        keypad = keypad,
-        keypadActions = editor.keypadActions,
-        routines = routines,
-        onStartRoutineClick = {
-            requestNotifications()
-            viewModel.onStartRoutineClick(it)
-        },
-        onEditRoutine = onEditRoutine,
-        rest = rest,
-        restActions = restActions,
-        onRestEditClick = viewModel::onRestEditClick,
-        showPeekHint = showPeekHint,
-        onPeekHintShown = viewModel::onPeekHintShown,
-        modifier = modifier,
-    )
+    val finishedWorkout = finished
+    if (finishedWorkout != null) {
+        // The summary takes the tab's place until it is dismissed; the workout is no longer active by then.
+        FinishSummaryScreen(
+            finished = finishedWorkout,
+            onDone = viewModel::onSummaryDismiss,
+            onSaveAsRoutine = viewModel::onSaveAsRoutineClick,
+            onResume = if (finishedWorkout.canResume) viewModel::onResumeWorkoutClick else null,
+            modifier = modifier,
+        )
+    } else {
+        WorkoutScreen(
+            state = state,
+            onStartClick = {
+                requestNotifications()
+                viewModel.onStartClick()
+            },
+            onFinishClick = viewModel::onFinishClick,
+            onDiscardClick = viewModel::onDiscardClick,
+            onAddExercisesClick = editor::onAddExercisesClick,
+            onMoveExercise = editor::onMoveExercise,
+            onRemoveExercise = editor::onRemoveExercise,
+            onAddSet = editor::onAddSet,
+            onWorkoutNotesChange = editor::onWorkoutNotesChange,
+            onExerciseNotesChange = editor::onExerciseNotesChange,
+            setActions = setActions,
+            onTracksRpeChange = editor::onTracksRpeChange,
+            keypad = keypad,
+            keypadActions = editor.keypadActions,
+            routines = routines,
+            onStartRoutineClick = {
+                requestNotifications()
+                viewModel.onStartRoutineClick(it)
+            },
+            onEditRoutine = onEditRoutine,
+            rest = rest,
+            restActions = restActions,
+            onRestEditClick = viewModel::onRestEditClick,
+            showPeekHint = showPeekHint,
+            onPeekHintShown = viewModel::onPeekHintShown,
+            onDeleteRoutineClick = viewModel::onDeleteRoutineClick,
+            modifier = modifier,
+        )
+    }
 
     SessionEditorDialogs(editor)
 
     finished?.let { workout ->
-        val routineName = workout.savingAsRoutine
-        if (routineName == null) {
-            WorkoutSummaryDialog(
-                summary = workout.summary,
-                records = workout.records,
-                endedAutomatically = workout.endedAutomatically,
-                onSaveAsRoutine = viewModel::onSaveAsRoutineClick,
-                onDismiss = viewModel::onSummaryDismiss,
-                onResume = if (workout.canResume) viewModel::onResumeWorkoutClick else null,
-            )
-        } else {
+        workout.savingAsRoutine?.let { routineName ->
             SaveRoutineDialog(
                 name = routineName,
                 showError = workout.routineNameError,
@@ -185,6 +178,24 @@ fun WorkoutRoute(
                 onDismiss = viewModel::onSaveRoutineDismiss,
             )
         }
+    }
+
+    confirmingRoutineDelete?.let { routine ->
+        AlertDialog(
+            onDismissRequest = viewModel::onDeleteRoutineDismiss,
+            title = { Text(stringResource(R.string.routine_delete_title, routine.routine.name)) },
+            text = { Text(stringResource(R.string.routine_delete_body)) },
+            confirmButton = {
+                TextButton(onClick = viewModel::onDeleteRoutineConfirm) {
+                    Text(stringResource(R.string.routine_delete_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = viewModel::onDeleteRoutineDismiss) {
+                    Text(stringResource(R.string.routine_delete_keep))
+                }
+            },
+        )
     }
 
     restEdit?.let { edit ->
@@ -278,63 +289,6 @@ internal fun SessionEditorDialogs(editor: SessionEditor) {
             },
         )
     }
-}
-
-@Composable
-private fun WorkoutSummaryDialog(
-    summary: WorkoutSummary,
-    records: List<ExerciseRecords>,
-    endedAutomatically: Boolean,
-    onSaveAsRoutine: () -> Unit,
-    onDismiss: () -> Unit,
-    onResume: (() -> Unit)?,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.workout_summary_title)) },
-        text = {
-            // Scrolls, since a big session's records can outgrow the dialog.
-            Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-            ) {
-                if (endedAutomatically) {
-                    Text(
-                        text = stringResource(R.string.workout_summary_ended_automatically),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 8.dp),
-                    )
-                }
-                if (records.isNotEmpty()) RecordsCelebration(records)
-                SummaryRow(stringResource(R.string.workout_summary_duration), durationText(summary.durationMillis))
-                SummaryRow(stringResource(R.string.workout_summary_exercises), summary.exerciseCount.toString())
-                SummaryRow(stringResource(R.string.workout_summary_sets), summary.setCount.toString())
-                SummaryRow(
-                    stringResource(R.string.workout_summary_volume),
-                    volumeText(summary.volumeKg),
-                )
-                if (summary.setCount == 0) {
-                    Text(
-                        text = stringResource(R.string.workout_summary_no_sets),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 8.dp),
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.workout_summary_done)) }
-        },
-        dismissButton = {
-            // Resume undoes a Finish tapped by mistake; the dialog's buttons wrap if they don't fit.
-            if (onResume != null) {
-                TextButton(onClick = onResume) { Text(stringResource(R.string.workout_summary_resume)) }
-            }
-            TextButton(onClick = onSaveAsRoutine) { Text(stringResource(R.string.workout_save_as_routine)) }
-        },
-    )
 }
 
 /**
@@ -443,14 +397,6 @@ private fun SaveRoutineDialog(
 }
 
 @Composable
-private fun SummaryRow(label: String, value: String) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-        Text(value, style = MaterialTheme.typography.titleMedium.tabular())
-    }
-}
-
-@Composable
 fun WorkoutScreen(
     state: WorkoutUiState,
     onStartClick: () -> Unit,
@@ -475,12 +421,19 @@ fun WorkoutScreen(
     onTracksRpeChange: (exerciseId: String, tracksRpe: Boolean) -> Unit = { _, _ -> },
     showPeekHint: Boolean = false,
     onPeekHintShown: () -> Unit = {},
+    onDeleteRoutineClick: (RoutineSummary) -> Unit = {},
 ) {
     when (state) {
         WorkoutUiState.Loading ->
             Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
 
-        WorkoutUiState.Idle -> IdleContent(onStartClick, routines, onStartRoutineClick, onEditRoutine, modifier)
+        WorkoutUiState.Idle ->
+            IdleContent(
+                routines = routines,
+                onStartEmptyClick = onStartClick,
+                actions = RoutineActions(onStartRoutineClick, onEditRoutine, onDeleteRoutineClick),
+                modifier = modifier,
+            )
 
         is WorkoutUiState.Active ->
             ActiveContent(
@@ -504,112 +457,6 @@ fun WorkoutScreen(
                 showPeekHint = showPeekHint,
                 onPeekHintShown = onPeekHintShown,
             )
-    }
-}
-
-@Composable
-private fun IdleContent(
-    onStartClick: () -> Unit,
-    routines: List<RoutineSummary>,
-    onStartRoutineClick: (routineId: String) -> Unit,
-    onEditRoutine: (routineId: String?) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        item {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
-            ) {
-                Text(
-                    text = stringResource(R.string.workout_idle_title),
-                    style = MaterialTheme.typography.headlineMedium,
-                )
-                Text(
-                    text = stringResource(R.string.workout_idle_body),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
-                Spacer(Modifier.height(24.dp))
-                Button(onClick = onStartClick) {
-                    Icon(Icons.Filled.PlayArrow, contentDescription = null)
-                    Text(stringResource(R.string.workout_start_empty), modifier = Modifier.padding(start = 8.dp))
-                }
-            }
-        }
-        item {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = stringResource(R.string.workout_idle_routines),
-                    style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier.weight(1f),
-                )
-                TextButton(onClick = { onEditRoutine(null) }) {
-                    Icon(Icons.Filled.Add, contentDescription = null)
-                    Text(stringResource(R.string.workout_new_routine), modifier = Modifier.padding(start = 8.dp))
-                }
-            }
-        }
-        if (routines.isEmpty()) {
-            item {
-                Text(
-                    text = stringResource(R.string.workout_idle_no_routines),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                )
-            }
-        }
-        items(routines, key = { it.routine.id }) { summary ->
-            RoutineCard(
-                summary = summary,
-                onStart = { onStartRoutineClick(summary.routine.id) },
-                onEdit = { onEditRoutine(summary.routine.id) },
-                modifier = Modifier.animateItem(),
-            )
-        }
-    }
-}
-
-@Composable
-private fun RoutineCard(
-    summary: RoutineSummary,
-    onStart: () -> Unit,
-    onEdit: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val name = summary.routine.name
-    Card(onClick = onEdit, modifier = modifier.fillMaxWidth()) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(name, style = MaterialTheme.typography.titleMedium)
-                Text(
-                    text = summary.exerciseNames.joinToString().ifEmpty {
-                        stringResource(R.string.workout_routine_empty)
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            val description = stringResource(R.string.workout_start_routine_description, name)
-            FilledTonalButton(
-                onClick = onStart,
-                modifier = Modifier.padding(start = 8.dp).semantics { contentDescription = description },
-            ) {
-                Text(stringResource(R.string.workout_start_routine))
-            }
-        }
     }
 }
 
@@ -1033,6 +880,16 @@ private fun IdlePreview() {
             onWorkoutNotesChange = {},
             onExerciseNotesChange = { _, _ -> },
             setActions = SetActions.None,
+            routines =
+            listOf(
+                RoutineSummary(Routine("pull", "Pull Day", "", 0L, 0L), listOf("Deadlift", "Pull-Up", "Barbell Row")),
+                RoutineSummary(
+                    Routine("push", "Push Day", "", 0L, 0L),
+                    listOf("Bench Press", "Overhead Press"),
+                    lastDoneAt = System.currentTimeMillis(),
+                    typicalDurationMillis = 58 * 60_000L,
+                ),
+            ),
         )
     }
 }

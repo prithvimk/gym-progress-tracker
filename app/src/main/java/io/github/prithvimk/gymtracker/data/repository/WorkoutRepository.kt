@@ -10,7 +10,10 @@ import io.github.prithvimk.gymtracker.data.db.entity.PersonalRecord
 import io.github.prithvimk.gymtracker.data.db.entity.Workout
 import io.github.prithvimk.gymtracker.data.db.entity.WorkoutExercise
 import io.github.prithvimk.gymtracker.data.db.entity.WorkoutSet
+import io.github.prithvimk.gymtracker.domain.SessionComparison
+import io.github.prithvimk.gymtracker.domain.SessionExercise
 import io.github.prithvimk.gymtracker.domain.WorkoutSummary
+import io.github.prithvimk.gymtracker.domain.compareSessions
 import io.github.prithvimk.gymtracker.domain.model.SetType
 import io.github.prithvimk.gymtracker.domain.summarizeWorkout
 import java.util.UUID
@@ -89,6 +92,23 @@ class WorkoutRepository(
     suspend fun summarize(id: String): WorkoutSummary? {
         val workout = workoutDao.getById(id) ?: return null
         return summarizeWorkout(workout, workoutDao.observeSetsForWorkout(id).first(), now = now())
+    }
+
+    /**
+     * The workout against the last session of the same routine with a set done, or null if it wasn't
+     * started from a routine, has no set done itself, or the routine has no earlier session.
+     */
+    suspend fun compareWithPrevious(id: String): SessionComparison? {
+        if (workoutDao.countCompletedSets(id) == 0) return null
+        val previousId = workoutDao.getPreviousRoutineWorkoutId(id) ?: return null
+        return compareSessions(sessionExercises(id), sessionExercises(previousId))
+    }
+
+    private suspend fun sessionExercises(workoutId: String): List<SessionExercise> {
+        val sets = workoutDao.observeSetsForWorkout(workoutId).first().groupBy { it.workoutExerciseId }
+        return workoutDao.observeExerciseEntries(workoutId).first().map {
+            SessionExercise(it.exerciseId, it.name, sets[it.id].orEmpty())
+        }
     }
 
     suspend fun updateWorkoutNotes(id: String, notes: String) {

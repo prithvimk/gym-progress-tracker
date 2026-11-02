@@ -850,4 +850,54 @@ class WorkoutRepositoryTest {
         const val FILE_DB = "active-workout-test.db"
         const val HOUR = 3_600_000L
     }
+
+    @Test
+    fun `compareWithPrevious compares with the last session of the routine that had a set done`() = runTest {
+        val dao = db.workoutDao()
+        db.routineDao().upsert(routine("push"))
+        // The session before last: older, so not the one compared with.
+        logSession("w1", startedAt = 100L, routineId = "push", benchKg = 70.0)
+        logSession("w2", startedAt = 200L, routineId = "push", benchKg = 80.0, ohpKg = 50.0)
+        // A later session with nothing done, and one of another routine, are both skipped.
+        dao.upsert(workout("w3", startedAt = 300L, endedAt = 310L, routineId = "push"))
+        logSession("other", startedAt = 350L, routineId = null, benchKg = 100.0)
+        logSession("w4", startedAt = 400L, routineId = "push", benchKg = 82.5, ohpKg = 50.0)
+
+        val comparison = repository.compareWithPrevious("w4")!!
+
+        assertEquals(82.5 * 8 + 50.0 * 8, comparison.volumeKg, 0.001)
+        assertEquals(80.0 * 8 + 50.0 * 8, comparison.previousVolumeKg, 0.001)
+        assertEquals(listOf("Bench Press", "Overhead Press"), comparison.exercises.map { it.name })
+        assertEquals(80.0, comparison.exercises.first().previousTopSet.weightKg, 0.0)
+    }
+
+    @Test
+    fun `compareWithPrevious is null without a routine, an earlier session or a set done`() = runTest {
+        db.routineDao().upsert(routine("push"))
+        logSession("empty-routine", startedAt = 50L, routineId = null, benchKg = 60.0)
+        logSession("first", startedAt = 100L, routineId = "push", benchKg = 60.0)
+        db.workoutDao().upsert(workout("nothing-done", startedAt = 200L, endedAt = 300L, routineId = "push"))
+
+        assertNull(repository.compareWithPrevious("empty-routine"))
+        assertNull(repository.compareWithPrevious("first"))
+        assertNull(repository.compareWithPrevious("nothing-done"))
+    }
+
+    /** A finished workout with one completed set of 8 on bench and, if given, overhead press. */
+    private suspend fun logSession(
+        id: String,
+        startedAt: Long,
+        routineId: String?,
+        benchKg: Double,
+        ohpKg: Double? = null,
+    ) {
+        val dao = db.workoutDao()
+        dao.upsert(workout(id, startedAt = startedAt, endedAt = startedAt + 10L, routineId = routineId))
+        dao.upsertExercise(workoutExercise("$id-bench", id, "bench", position = 0))
+        dao.upsertSet(workoutSet("$id-b1", "$id-bench", 0, weightKg = benchKg, reps = 8, completedAt = startedAt + 1L))
+        if (ohpKg != null) {
+            dao.upsertExercise(workoutExercise("$id-ohp", id, "ohp", position = 1))
+            dao.upsertSet(workoutSet("$id-o1", "$id-ohp", 0, weightKg = ohpKg, reps = 8, completedAt = startedAt + 2L))
+        }
+    }
 }

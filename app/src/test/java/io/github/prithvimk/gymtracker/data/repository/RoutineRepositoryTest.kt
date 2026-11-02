@@ -171,4 +171,24 @@ class RoutineRepositoryTest {
         assertNull(repository.getRoutineDetail("id-0"))
         assertNull(db.workoutDao().getById("w")!!.routineId)
     }
+
+    @Test
+    fun `summaries carry when each routine was last done and its average duration`() = runTest {
+        repository.saveRoutine(null, "Push", "", listOf(RoutineExerciseInput(null, "bench", ExerciseTargets.Default)))
+        repository.saveRoutine(null, "Pull", "", emptyList())
+        val dao = db.workoutDao()
+        dao.upsert(workout("old", startedAt = 1_000L, endedAt = 1_000L + 50 * 60_000L, routineId = "id-0"))
+        dao.upsert(workout("new", startedAt = 9_000L, endedAt = 9_000L + 70 * 60_000L, routineId = "id-0"))
+        // Neither a running workout nor an empty one counts.
+        dao.upsert(workout("running", startedAt = 20_000L, routineId = "id-0"))
+        dao.upsert(workout("empty", startedAt = 30_000L, endedAt = 40_000L))
+
+        val summaries = repository.observeRoutineSummaries().first().associateBy { it.routine.name }
+
+        assertEquals(9_000L, summaries.getValue("Push").lastDoneAt)
+        assertEquals(60 * 60_000L, summaries.getValue("Push").typicalDurationMillis)
+        assertEquals(1, summaries.getValue("Push").exerciseCount)
+        assertNull(summaries.getValue("Pull").lastDoneAt)
+        assertNull(summaries.getValue("Pull").typicalDurationMillis)
+    }
 }

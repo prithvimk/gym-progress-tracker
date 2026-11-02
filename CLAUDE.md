@@ -13,6 +13,11 @@ Run before every push, the same as CI:
 
 Schema changes ship with a Room migration and a migration test.
 
+## Pull requests
+
+Open a pull request as soon as a checklist item (or small group of items) is done and pushed, without
+waiting to be asked. Then follow the phone test checklist below for its `pr-<number>` build.
+
 ## Phone test checklist after every build
 
 After any build (a local build, or CI going green on a push or pull request), give the user a checklist of

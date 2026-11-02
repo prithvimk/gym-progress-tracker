@@ -160,6 +160,23 @@ interface WorkoutDao {
     @Query("SELECT r.name FROM workouts w JOIN routines r ON r.id = w.routineId WHERE w.id = :workoutId")
     fun observeRoutineName(workoutId: String): Flow<String?>
 
+    /**
+     * The last finished workout of the same routine that started before [workoutId] and has a set done,
+     * or null if there is none or [workoutId] wasn't started from a routine.
+     */
+    @Query(
+        """
+        SELECT prev.id FROM workouts cur JOIN workouts prev ON prev.routineId = cur.routineId
+        WHERE cur.id = :workoutId AND prev.id != cur.id AND prev.endedAt IS NOT NULL
+            AND prev.startedAt < cur.startedAt
+            AND EXISTS (SELECT 1 FROM workout_sets s JOIN workout_exercises we ON we.id = s.workoutExerciseId
+                WHERE we.workoutId = prev.id AND s.completedAt IS NOT NULL)
+        ORDER BY prev.startedAt DESC
+        LIMIT 1
+        """
+    )
+    suspend fun getPreviousRoutineWorkoutId(workoutId: String): String?
+
     @Query("UPDATE workouts SET endedAt = :endedAt, updatedAt = :endedAt WHERE id = :id AND endedAt IS NULL")
     suspend fun finish(id: String, endedAt: Long)
 
