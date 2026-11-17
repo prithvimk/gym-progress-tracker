@@ -44,6 +44,12 @@ data class WorkoutHistoryRow(
     val recordCount: Int,
 )
 
+/** A completed set other than a warm-up, from the last finished workout its exercise was done in. */
+data class LastSessionSet(val exerciseId: String, val startedAt: Long, val weightKg: Double, val reps: Int)
+
+/** The name of one exercise in a workout, for the history list. */
+data class WorkoutExerciseName(val workoutId: String, val name: String)
+
 /** A completed set of an exercise, with the workout it was done in, for the exercise's history. */
 data class ExerciseHistoryRow(
     val workoutId: String,
@@ -73,6 +79,49 @@ interface WorkoutDao {
         """
     )
     fun observeHistory(): Flow<List<WorkoutHistoryRow>>
+
+    /**
+     * For every exercise, its completed sets other than warm-ups from the last finished workout that had
+     * any, for the exercise list's "last top set".
+     */
+    @Query(
+        """
+        SELECT we.exerciseId, w.startedAt, s.weightKg, s.reps FROM workout_sets s
+        JOIN workout_exercises we ON we.id = s.workoutExerciseId JOIN workouts w ON w.id = we.workoutId
+        WHERE s.completedAt IS NOT NULL AND s.type != 'WARMUP' AND w.endedAt IS NOT NULL
+            AND w.startedAt = (
+                SELECT MAX(w2.startedAt) FROM workout_sets s2
+                JOIN workout_exercises we2 ON we2.id = s2.workoutExerciseId JOIN workouts w2 ON w2.id = we2.workoutId
+                WHERE we2.exerciseId = we.exerciseId AND s2.completedAt IS NOT NULL AND s2.type != 'WARMUP'
+                    AND w2.endedAt IS NOT NULL
+            )
+        """
+    )
+    fun observeLastSessionSets(): Flow<List<LastSessionSet>>
+
+    /**
+     * The exercises of the last [workoutCount] finished workouts, most recent workout first and each in
+     * order. An exercise can appear more than once.
+     */
+    @Query(
+        """
+        SELECT we.exerciseId FROM workout_exercises we JOIN workouts w ON w.id = we.workoutId
+        WHERE w.id IN (SELECT id FROM workouts WHERE endedAt IS NOT NULL ORDER BY startedAt DESC LIMIT :workoutCount)
+        ORDER BY w.startedAt DESC, we.position
+        """
+    )
+    fun observeRecentExerciseIds(workoutCount: Int): Flow<List<String>>
+
+    /** Exercise names of every finished workout, each workout's in order. */
+    @Query(
+        """
+        SELECT we.workoutId, e.name FROM workout_exercises we
+        JOIN workouts w ON w.id = we.workoutId JOIN exercises e ON e.id = we.exerciseId
+        WHERE w.endedAt IS NOT NULL
+        ORDER BY we.workoutId, we.position
+        """
+    )
+    fun observeHistoryExerciseNames(): Flow<List<WorkoutExerciseName>>
 
     /**
      * Every completed set of the exercise, the active workout's included: newest workout first, then in

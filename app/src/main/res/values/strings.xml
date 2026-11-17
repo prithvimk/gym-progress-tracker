@@ -99,7 +99,6 @@
     <!-- Title of a history card for a workout not started from a routine. -->
     <string name="history_workout_untitled">Workout</string>
     <!-- A history card's numbers, e.g. "1 h 2 min · 18 sets · 8,420 kg". -->
-    <string name="history_workout_stats">%1$s · %2$s · %3$s</string>
     <plurals name="history_workout_sets">
         <item quantity="one">%d set</item>
         <item quantity="other">%d sets</item>
@@ -108,8 +107,13 @@
         <item quantity="one">%d PR</item>
         <item quantity="other">%d PRs</item>
     </plurals>
-    <string name="history_view_list">List</string>
-    <string name="history_view_calendar">Calendar</string>
+    <string name="history_show_list">Show list</string>
+    <string name="history_show_calendar">Show calendar</string>
+    <!-- Either end of the calendar's key to how its trained days are tinted by volume. -->
+    <string name="history_legend_less">Less</string>
+    <string name="history_legend_more">More volume</string>
+    <!-- A workout's first exercises, then how many more, e.g. "Bench Press, Overhead Press, Dip +2". -->
+    <string name="history_workout_more_exercises">%1$s +%2$d</string>
     <string name="history_month_previous">Previous month</string>
     <string name="history_month_next">Next month</string>
     <string name="history_month_empty">No workouts this month.</string>
@@ -127,10 +131,14 @@
     <string name="workout_detail_done">Done</string>
     <string name="workout_detail_edit_hint">Changes save as you make them, and records are worked out again.</string>
     <string name="workout_detail_notes">Notes</string>
-    <string name="workout_detail_no_sets">No sets done</string>
+    <!-- An exercise of a past workout with no set done. -->
+    <string name="workout_detail_skipped">Skipped</string>
+    <string name="workout_detail_more">More options</string>
+    <!-- Read out for an exercise's name in a past workout, which opens the exercise's history. -->
+    <string name="workout_detail_open_exercise">Open exercise history</string>
     <plurals name="workout_detail_not_done">
-        <item quantity="one">%d set not done</item>
-        <item quantity="other">%d sets not done</item>
+        <item quantity="one">%d planned set skipped</item>
+        <item quantity="other">%d planned sets skipped</item>
     </plurals>
     <!-- The %1$s in record and set texts is a weight with its unit, e.g. "82.5 kg". -->
     <string name="record_weight">Heaviest weight: %1$s</string>
@@ -249,6 +257,10 @@
 
     <!-- Exercise picker -->
     <string name="picker_title">Add exercises</string>
+    <string name="picker_recent">Recent</string>
+    <!-- A pick in the tray above the Add button: its place in the order, then its name. -->
+    <string name="picker_tray_item">%1$d %2$s</string>
+    <string name="picker_remove">Remove %1$s</string>
     <string name="picker_empty">No exercises match. Try another search.</string>
     <string name="picker_add_none">Select exercises to add</string>
     <plurals name="picker_add">
@@ -259,11 +271,19 @@
     <!-- Exercises screen -->
     <string name="exercises_title">Exercises</string>
     <string name="exercises_search">Search exercises</string>
+    <plurals name="exercises_search_count">
+        <item quantity="one">Search %d exercise</item>
+        <item quantity="other">Search %d exercises</item>
+    </plurals>
+    <string name="exercises_equipment">Equipment</string>
+    <string name="exercises_any_equipment">Any equipment</string>
+    <!-- An exercise's top set from the last workout it was done in, and when, e.g. "Last 82.5 kg × 8 · today". -->
+    <string name="exercises_last_top_set">Last %1$s · %2$s</string>
     <string name="exercises_clear_search">Clear search</string>
     <string name="exercises_filter_all">All</string>
     <string name="exercises_show_archived">Show archived</string>
     <string name="exercises_new">New exercise</string>
-    <string name="exercises_empty">No exercises match. Try another search or muscle group.</string>
+    <string name="exercises_empty">No exercises match. Try another search or filter.</string>
     <string name="exercises_custom_tag">Custom</string>
     <string name="exercises_archived_tag">Archived</string>
     <string name="exercise_subtitle">%1$s · %2$s</string>
@@ -272,6 +292,24 @@
     <string name="exercise_detail_back">Back</string>
     <string name="exercise_detail_edit">Edit exercise</string>
     <string name="exercise_detail_records">Personal records</string>
+    <string name="exercise_detail_e1rm">Estimated 1RM</string>
+    <!-- How the estimated 1RM moved, e.g. "+4.2 kg in 30 days". -->
+    <plurals name="exercise_detail_e1rm_change">
+        <item quantity="one">%1$s in %2$d day</item>
+        <item quantity="other">%1$s in %2$d days</item>
+    </plurals>
+    <plurals name="exercise_detail_e1rm_no_change">
+        <item quantity="one">No change in %1$d day</item>
+        <item quantity="other">No change in %1$d days</item>
+    </plurals>
+    <!-- Under a record tile's value: what the record is, then the day it was set, e.g. "Heaviest · 31 Oct". -->
+    <string name="record_tile_label">%1$s · %2$s</string>
+    <string name="record_tile_weight">Heaviest</string>
+    <string name="record_tile_reps">Most reps</string>
+    <string name="record_tile_e1rm">Best e1RM</string>
+    <string name="record_tile_volume">Session volume</string>
+    <!-- Reps at a weight, e.g. "8 @ 82.5 kg". -->
+    <string name="record_tile_reps_at_weight">%1$d \@ %2$s</string>
     <string name="exercise_detail_no_records">No records yet. Complete a working set to set the first ones.</string>
     <string name="exercise_detail_history">History</string>
     <string name="exercise_detail_empty">Not logged yet. Complete a set of this exercise in a workout and it shows up here.</string>

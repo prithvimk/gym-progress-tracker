@@ -13,6 +13,8 @@ import io.github.prithvimk.gymtracker.data.routineExercise
 import io.github.prithvimk.gymtracker.data.workout
 import io.github.prithvimk.gymtracker.data.workoutExercise
 import io.github.prithvimk.gymtracker.data.workoutSet
+import io.github.prithvimk.gymtracker.domain.LastTopSet
+import io.github.prithvimk.gymtracker.domain.TopSet
 import io.github.prithvimk.gymtracker.domain.WorkoutSummary
 import io.github.prithvimk.gymtracker.domain.model.PrType
 import io.github.prithvimk.gymtracker.domain.model.SetType
@@ -881,6 +883,62 @@ class WorkoutRepositoryTest {
         assertNull(repository.compareWithPrevious("empty-routine"))
         assertNull(repository.compareWithPrevious("first"))
         assertNull(repository.compareWithPrevious("nothing-done"))
+    }
+
+    @Test
+    fun `last top sets come from each exercise's last finished workout, leaving out warm-ups`() = runTest {
+        val dao = db.workoutDao()
+        logSession("older", startedAt = 100L, routineId = null, benchKg = 90.0, ohpKg = 50.0)
+        logSession("newer", startedAt = 200L, routineId = null, benchKg = 80.0)
+        dao.upsertSet(workoutSet("newer-b2", "newer-bench", 1, weightKg = 80.0, reps = 9, completedAt = 202L))
+        dao.upsertSet(
+            workoutSet(
+                "newer-w",
+                "newer-bench",
+                2,
+                weightKg = 120.0,
+                reps = 1,
+                type = SetType.WARMUP,
+                completedAt = 203L
+            ),
+        )
+        // Neither a running workout nor a set not ticked counts.
+        dao.upsert(workout("running", startedAt = 300L))
+        dao.upsertExercise(workoutExercise("running-bench", "running", "bench"))
+        dao.upsertSet(workoutSet("running-1", "running-bench", 0, weightKg = 200.0, reps = 1, completedAt = 301L))
+        dao.upsertSet(workoutSet("newer-undone", "newer-bench", 3, weightKg = 150.0, reps = 1))
+
+        val tops = repository.observeLastTopSets().first()
+
+        assertEquals(LastTopSet(TopSet(80.0, 9), 200L), tops["bench"])
+        assertEquals(LastTopSet(TopSet(50.0, 8), 100L), tops["ohp"])
+        assertNull(tops["fly"])
+    }
+
+    @Test
+    fun `recent exercises come from the last finished workouts, newest first, each once`() = runTest {
+        logSession("old", startedAt = 100L, routineId = null, benchKg = 60.0, ohpKg = 40.0)
+        val dao = db.workoutDao()
+        dao.upsert(workout("new", startedAt = 200L, endedAt = 210L))
+        dao.upsertExercise(workoutExercise("new-fly", "new", "fly", position = 0))
+        dao.upsertExercise(workoutExercise("new-bench", "new", "bench", position = 1))
+        // The running workout's exercises aren't recent yet.
+        dao.upsert(workout("running", startedAt = 300L))
+        dao.upsertExercise(workoutExercise("running-ohp", "running", "ohp"))
+
+        assertEquals(listOf("fly", "bench", "ohp"), repository.observeRecentExerciseIds().first())
+    }
+
+    @Test
+    fun `history exercise names are each finished workout's, in order`() = runTest {
+        logSession("done", startedAt = 100L, routineId = null, benchKg = 60.0, ohpKg = 40.0)
+        db.workoutDao().upsert(workout("running", startedAt = 300L))
+        db.workoutDao().upsertExercise(workoutExercise("running-fly", "running", "fly"))
+
+        assertEquals(
+            mapOf("done" to listOf("Bench Press", "Overhead Press")),
+            repository.observeHistoryExerciseNames().first(),
+        )
     }
 
     /** A finished workout with one completed set of 8 on bench and, if given, overhead press. */

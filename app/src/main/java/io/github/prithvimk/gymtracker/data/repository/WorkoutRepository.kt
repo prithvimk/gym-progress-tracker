@@ -10,15 +10,19 @@ import io.github.prithvimk.gymtracker.data.db.entity.PersonalRecord
 import io.github.prithvimk.gymtracker.data.db.entity.Workout
 import io.github.prithvimk.gymtracker.data.db.entity.WorkoutExercise
 import io.github.prithvimk.gymtracker.data.db.entity.WorkoutSet
+import io.github.prithvimk.gymtracker.domain.LastTopSet
 import io.github.prithvimk.gymtracker.domain.SessionComparison
 import io.github.prithvimk.gymtracker.domain.SessionExercise
+import io.github.prithvimk.gymtracker.domain.TopSet
 import io.github.prithvimk.gymtracker.domain.WorkoutSummary
+import io.github.prithvimk.gymtracker.domain.bestOf
 import io.github.prithvimk.gymtracker.domain.compareSessions
 import io.github.prithvimk.gymtracker.domain.model.SetType
 import io.github.prithvimk.gymtracker.domain.summarizeWorkout
 import java.util.UUID
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 
 /** What [WorkoutRepository.endIdleWorkout] did with the active workout. */
 sealed interface IdleWorkoutResult {
@@ -190,6 +194,24 @@ class WorkoutRepository(
     /** Finished workouts for the history list, newest first. */
     fun observeHistory(): Flow<List<WorkoutHistoryRow>> = workoutDao.observeHistory()
 
+    /** Each trained exercise's top set from the last finished workout it was done in, keyed by exercise id. */
+    fun observeLastTopSets(): Flow<Map<String, LastTopSet>> = workoutDao.observeLastSessionSets().map { rows ->
+        rows.groupBy { it.exerciseId }.mapValues { (_, sets) ->
+            // Two workouts can't start at the same moment in practice, but the latest wins if they do.
+            val startedAt = sets.maxOf { it.startedAt }
+            val top = bestOf(sets.filter { it.startedAt == startedAt }.map { TopSet(it.weightKg, it.reps) })
+            LastTopSet(checkNotNull(top), startedAt)
+        }
+    }
+
+    /** Exercises from the last few finished workouts, most recently done first, each once. */
+    fun observeRecentExerciseIds(): Flow<List<String>> =
+        workoutDao.observeRecentExerciseIds(RECENT_WORKOUTS).map { it.distinct() }
+
+    /** The exercise names of each finished workout, in order, keyed by workout id. */
+    fun observeHistoryExerciseNames(): Flow<Map<String, List<String>>> =
+        workoutDao.observeHistoryExerciseNames().map { rows -> rows.groupBy({ it.workoutId }, { it.name }) }
+
     /** Every completed set of the exercise with its workout, newest workout first. */
     fun observeExerciseHistory(exerciseId: String): Flow<List<ExerciseHistoryRow>> =
         workoutDao.observeExerciseHistory(exerciseId)
@@ -270,5 +292,8 @@ class WorkoutRepository(
     companion object {
         /** How long an active workout can go untouched before [endIdleWorkout] ends it: 3 hours. */
         const val IDLE_LIMIT_MILLIS = 3 * 60 * 60 * 1_000L
+
+        /** How many finished workouts the add-exercises sheet takes its Recent exercises from. */
+        const val RECENT_WORKOUTS = 5
     }
 }

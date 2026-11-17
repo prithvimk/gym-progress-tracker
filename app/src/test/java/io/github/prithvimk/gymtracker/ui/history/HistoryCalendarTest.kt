@@ -99,4 +99,31 @@ class HistoryCalendarTest {
         val startedAt = start.atZone(zone).toInstant().toEpochMilli()
         return WorkoutHistoryRow(id, null, startedAt, startedAt + 3_600_000L, 10, 1_000.0, 0)
     }
+
+    @Test
+    fun `trained days are tinted by which third of the busiest day's volume they reach`() {
+        val day = { d: Int -> LocalDate.of(2026, 10, d) }
+        val levels =
+            volumeLevels(
+                mapOf(
+                    day(1) to listOf(volumeRow("a", 9_000.0)),
+                    // Two workouts on one day add up: 6,000 is two thirds of 9,000.
+                    day(2) to listOf(volumeRow("b", 4_000.0), volumeRow("c", 2_000.0)),
+                    day(3) to listOf(volumeRow("d", 2_000.0)),
+                    day(4) to listOf(volumeRow("e", 0.0)),
+                ),
+            )
+
+        assertEquals(mapOf(day(1) to 3, day(2) to 2, day(3) to 1, day(4) to 1), levels)
+    }
+
+    @Test
+    fun `a month of bodyweight work is all the first step`() {
+        val day = LocalDate.of(2026, 10, 5)
+
+        assertEquals(mapOf(day to 1), volumeLevels(mapOf(day to listOf(volumeRow("a", 0.0)))))
+        assertEquals(emptyMap<LocalDate, Int>(), volumeLevels(emptyMap()))
+    }
+
+    private fun volumeRow(id: String, volumeKg: Double) = WorkoutHistoryRow(id, null, 0L, 1L, 10, volumeKg, 0)
 }

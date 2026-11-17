@@ -7,7 +7,6 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import io.github.prithvimk.gymtracker.GymTrackerApp
 import io.github.prithvimk.gymtracker.data.db.dao.WorkoutExerciseEntry
-import io.github.prithvimk.gymtracker.data.db.entity.Exercise
 import io.github.prithvimk.gymtracker.data.db.entity.Workout
 import io.github.prithvimk.gymtracker.data.db.entity.WorkoutSet
 import io.github.prithvimk.gymtracker.data.prefs.Hint
@@ -89,13 +88,6 @@ data class RestEdit(val workoutExerciseId: String, val exerciseName: String, val
 
 /** An exercise waiting on confirmation before it and its [setCount] sets are removed. */
 data class PendingRemoval(val workoutExerciseId: String, val name: String, val setCount: Int)
-
-/** The add-exercises sheet. [selectedIds] keeps tap order, which is the order the exercises are added in. */
-data class ExercisePickerState(
-    val query: String = "",
-    val selectedIds: List<String> = emptyList(),
-    val options: List<Exercise> = emptyList(),
-)
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class WorkoutViewModel(

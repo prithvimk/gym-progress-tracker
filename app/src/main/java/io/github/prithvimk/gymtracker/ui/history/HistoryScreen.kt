@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -20,14 +21,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
@@ -35,15 +35,22 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -125,12 +132,7 @@ private fun HistoryContent(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        item(key = "header") {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(bottom = 8.dp)) {
-                Text(text = stringResource(R.string.nav_history), style = MaterialTheme.typography.headlineMedium)
-                ViewSwitch(state.view, calendarActions.onViewChange)
-            }
-        }
+        item(key = "header") { HistoryHeader(state.view, calendarActions.onViewChange) }
         val calendar = state.calendar
         if (state.view == HistoryView.CALENDAR && calendar != null) {
             item(key = "calendar") { MonthCalendar(calendar, calendarActions) }
@@ -144,35 +146,36 @@ private fun HistoryContent(
                     )
                 }
             }
-            items(calendar.listed, key = { it.id }) { workout -> WorkoutCard(workout, { onWorkoutClick(workout.id) }) }
+            items(calendar.listed, key = { it.id }) { workout ->
+                WorkoutCard(workout, state.exerciseNames[workout.id].orEmpty(), { onWorkoutClick(workout.id) })
+            }
         } else {
             state.weeks.forEach { week ->
                 item(key = "week-${week.weekStart}") { WeekHeader(week) }
                 items(week.workouts, key = { it.id }) { workout ->
-                    WorkoutCard(workout, { onWorkoutClick(workout.id) })
+                    WorkoutCard(workout, state.exerciseNames[workout.id].orEmpty(), { onWorkoutClick(workout.id) })
                 }
             }
         }
     }
 }
 
+/** The tab's title, with an icon that switches between the list and the calendar. */
 @Composable
-private fun ViewSwitch(view: HistoryView, onViewChange: (HistoryView) -> Unit) {
-    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-        HistoryView.entries.forEachIndexed { index, option ->
-            SegmentedButton(
-                selected = option == view,
-                onClick = { onViewChange(option) },
-                shape = SegmentedButtonDefaults.itemShape(index, HistoryView.entries.size),
-            ) {
-                Text(
-                    stringResource(
-                        when (option) {
-                            HistoryView.LIST -> R.string.history_view_list
-                            HistoryView.CALENDAR -> R.string.history_view_calendar
-                        },
-                    ),
-                )
+private fun HistoryHeader(view: HistoryView, onViewChange: (HistoryView) -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+        Text(
+            text = stringResource(R.string.nav_history),
+            style = MaterialTheme.typography.headlineMedium,
+            modifier = Modifier.weight(1f).semantics { heading() },
+        )
+        if (view == HistoryView.LIST) {
+            IconButton(onClick = { onViewChange(HistoryView.CALENDAR) }) {
+                Icon(Icons.Filled.DateRange, contentDescription = stringResource(R.string.history_show_calendar))
+            }
+        } else {
+            IconButton(onClick = { onViewChange(HistoryView.LIST) }) {
+                Icon(Icons.AutoMirrored.Filled.List, contentDescription = stringResource(R.string.history_show_list))
             }
         }
     }
@@ -223,6 +226,7 @@ private fun MonthCalendar(calendar: HistoryMonth, actions: CalendarActions) {
                                 DayCell(
                                     day = day,
                                     count = calendar.workouts[day].orEmpty().size,
+                                    level = calendar.volumeLevels[day] ?: 0,
                                     isToday = day == calendar.today,
                                     selected = day == calendar.selectedDay,
                                     onClick = { actions.onDayClick(day) },
@@ -232,12 +236,61 @@ private fun MonthCalendar(calendar: HistoryMonth, actions: CalendarActions) {
                     }
                 }
             }
+            VolumeLegend(Modifier.align(Alignment.End).padding(top = 4.dp, end = 8.dp, bottom = 4.dp))
         }
     }
 }
 
+/** "Less ▢▢▢ More volume": what the tints on trained days mean. */
 @Composable
-private fun DayCell(day: LocalDate, count: Int, isToday: Boolean, selected: Boolean, onClick: () -> Unit) {
+private fun VolumeLegend(modifier: Modifier = Modifier) {
+    val less = stringResource(R.string.history_legend_less)
+    val more = stringResource(R.string.history_legend_more)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = modifier.semantics(mergeDescendants = true) {},
+    ) {
+        Text(less, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        (1..VOLUME_LEVELS).forEach { level ->
+            Box(Modifier.size(12.dp).clip(CircleShape).background(volumeTint(level)))
+        }
+        Text(more, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/**
+ * A trained day's fill by volume [level]: half-way to the primary container, the container itself,
+ * then half-way on to primary, which is kept for the picked day.
+ */
+@Composable
+private fun volumeTint(level: Int): Color {
+    val colors = MaterialTheme.colorScheme
+    return when (level) {
+        1 -> lerp(colors.surfaceContainerHigh, colors.primaryContainer, HALF)
+        2 -> colors.primaryContainer
+        else -> lerp(colors.primaryContainer, colors.primary, HALF)
+    }
+}
+
+/** Dark or light text, whichever reads better on [background]. */
+@Composable
+private fun contentOn(background: Color): Color {
+    val colors = MaterialTheme.colorScheme
+    val dark = if (colors.onSurface.luminance() < colors.surface.luminance()) colors.onSurface else colors.surface
+    val light = if (dark == colors.onSurface) colors.surface else colors.onSurface
+    return if (background.luminance() > LIGHT_BACKGROUND_LUMINANCE) dark else light
+}
+
+private const val HALF = 0.5f
+private const val LIGHT_BACKGROUND_LUMINANCE = 0.3f
+
+/**
+ * One day of the month. A trained day is tinted by its volume [level] and can be picked; the picked
+ * day is filled with primary, and today keeps its ring whatever else it is.
+ */
+@Composable
+private fun DayCell(day: LocalDate, count: Int, level: Int, isToday: Boolean, selected: Boolean, onClick: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     val trained = count > 0
     val description =
@@ -246,16 +299,27 @@ private fun DayCell(day: LocalDate, count: Int, isToday: Boolean, selected: Bool
         } else {
             formatDate(day, "EEEEdMMMM")
         }
+    val fill =
+        when {
+            selected -> colors.primary
+            trained -> volumeTint(level)
+            else -> Color.Transparent
+        }
+    val textColor =
+        when {
+            selected -> colors.onPrimary
+            trained -> contentOn(fill)
+            else -> colors.onSurface
+        }
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
-            .padding(3.dp)
+            .padding(2.dp)
             .fillMaxSize()
-            .then(if (selected) Modifier.border(2.dp, colors.onSurface, CircleShape) else Modifier)
-            .padding(if (selected) 3.dp else 0.dp)
+            .then(if (isToday) Modifier.border(2.dp, colors.primary, CircleShape) else Modifier)
+            .padding(4.dp)
             .clip(CircleShape)
-            .then(if (trained) Modifier.background(colors.primary) else Modifier)
-            .then(if (isToday && !trained) Modifier.border(1.dp, colors.primary, CircleShape) else Modifier)
+            .background(fill)
             .then(if (trained) Modifier.clickable(onClick = onClick) else Modifier)
             .clearAndSetSemantics {
                 contentDescription = description
@@ -266,7 +330,7 @@ private fun DayCell(day: LocalDate, count: Int, isToday: Boolean, selected: Bool
             text = day.dayOfMonth.toString(),
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = if (isToday || trained) FontWeight.Bold else null,
-            color = if (trained) colors.onPrimary else colors.onSurface,
+            color = textColor,
         )
     }
 }
@@ -330,42 +394,87 @@ private fun WeekHeader(week: HistoryWeek) {
     }
 }
 
+/**
+ * A finished workout: when it started, with a gold chip if it set records, its routine, its duration,
+ * sets and volume, and the first few of its [exerciseNames].
+ */
 @Composable
-internal fun WorkoutCard(workout: WorkoutHistoryRow, onClick: () -> Unit, modifier: Modifier = Modifier) {
+internal fun WorkoutCard(
+    workout: WorkoutHistoryRow,
+    exerciseNames: List<String>,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Card(onClick = onClick, modifier = modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.heightIn(min = 28.dp)) {
+                Text(
+                    text = formatStartTime(workout.startedAt),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                )
+                if (workout.recordCount > 0) {
+                    RecordChip(
+                        pluralStringResource(
+                            R.plurals.history_workout_records,
+                            workout.recordCount,
+                            workout.recordCount
+                        ),
+                    )
+                }
+            }
             Text(
                 text = workout.routineName ?: stringResource(R.string.history_workout_untitled),
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleLarge,
             )
-            Text(
-                text = formatStartTime(workout.startedAt),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                text =
-                stringResource(
-                    R.string.history_workout_stats,
-                    durationText(workout.endedAt - workout.startedAt),
-                    pluralStringResource(R.plurals.history_workout_sets, workout.setCount, workout.setCount),
-                    volumeText(workout.volumeKg),
-                ),
-                style = MaterialTheme.typography.bodyMedium.tabular(),
-            )
-            if (workout.recordCount > 0) {
-                RecordChip(
-                    text = pluralStringResource(
-                        R.plurals.history_workout_records,
-                        workout.recordCount,
-                        workout.recordCount
-                    ),
+            WorkoutStats(workout)
+            if (exerciseNames.isNotEmpty()) {
+                Text(
+                    text = exercisesText(exerciseNames),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(top = 4.dp),
                 )
             }
         }
     }
 }
+
+/** Duration with a timer icon, then sets and volume, on one row. */
+@Composable
+private fun WorkoutStats(workout: WorkoutHistoryRow) {
+    val style = MaterialTheme.typography.bodyLarge.tabular()
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                painter = painterResource(R.drawable.ic_rest_timer),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp),
+            )
+            Text(
+                durationText(workout.endedAt - workout.startedAt),
+                style = style,
+                modifier = Modifier.padding(start = 4.dp)
+            )
+        }
+        Text(pluralStringResource(R.plurals.history_workout_sets, workout.setCount, workout.setCount), style = style)
+        Text(volumeText(workout.volumeKg), style = style)
+    }
+}
+
+/** The first [CARD_EXERCISES] names, then how many more: "Bench Press, Overhead Press, Dip +2". */
+@Composable
+private fun exercisesText(names: List<String>): String {
+    val shown = names.take(CARD_EXERCISES).joinToString()
+    val more = names.size - CARD_EXERCISES
+    return if (more > 0) stringResource(R.string.history_workout_more_exercises, shown, more) else shown
+}
+
+private const val CARD_EXERCISES = 3
 
 @Composable
 private fun EmptyHistory(modifier: Modifier = Modifier) {

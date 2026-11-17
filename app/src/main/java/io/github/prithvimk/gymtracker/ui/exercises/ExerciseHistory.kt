@@ -3,6 +3,8 @@ package io.github.prithvimk.gymtracker.ui.exercises
 import io.github.prithvimk.gymtracker.data.db.dao.ExerciseHistoryRow
 import io.github.prithvimk.gymtracker.data.db.entity.PersonalRecord
 import io.github.prithvimk.gymtracker.data.db.entity.WorkoutSet
+import io.github.prithvimk.gymtracker.domain.countsForRecords
+import io.github.prithvimk.gymtracker.domain.estimatedOneRepMaxKg
 import io.github.prithvimk.gymtracker.domain.model.PrType
 import io.github.prithvimk.gymtracker.ui.workout.SetLabel
 import io.github.prithvimk.gymtracker.ui.workout.setLabels
@@ -40,6 +42,39 @@ fun standingRecords(records: List<PersonalRecord>, rows: List<ExerciseHistoryRow
             RecordBest(type, latest.value, set.weightKg, set.reps, latest.achievedAt)
         }.sortedBy { it.type }
 }
+
+/** An exercise's best estimated 1RM in one workout. */
+data class E1rmPoint(val startedAt: Long, val kg: Double)
+
+/**
+ * The best estimated 1RM of each workout in [rows], oldest first. Only the sets that count towards
+ * records do, so warm-ups and sets over 12 reps leave a workout out.
+ */
+fun e1rmPoints(rows: List<ExerciseHistoryRow>): List<E1rmPoint> = rows
+    .groupBy { it.workoutId }
+    .mapNotNull { (_, sessionRows) ->
+        val best = sessionRows
+            .filter { countsForRecords(it.set) }
+            .mapNotNull { estimatedOneRepMaxKg(it.set.weightKg, it.set.reps) }
+            .maxOrNull()
+        best?.let { E1rmPoint(sessionRows.first().workoutStartedAt, it) }
+    }.sortedBy { it.startedAt }
+
+/**
+ * How the latest point compares with the last one at least [days] days before [now], or null if there
+ * is no point that old, so the change always spans the whole period.
+ */
+fun e1rmChange(points: List<E1rmPoint>, now: Long, days: Int = E1RM_CHANGE_DAYS): Double? {
+    val latest = points.lastOrNull() ?: return null
+    val cutoff = now - days * MILLIS_PER_DAY
+    val baseline = points.lastOrNull { it.startedAt <= cutoff } ?: return null
+    return if (baseline == latest) null else latest.kg - baseline.kg
+}
+
+/** The period the exercise detail's e1RM change covers. */
+const val E1RM_CHANGE_DAYS = 30
+
+private const val MILLIS_PER_DAY = 86_400_000L
 
 /** [rows] grouped by workout, keeping their order, with each set's label and records. */
 fun historySessions(rows: List<ExerciseHistoryRow>, records: List<PersonalRecord>): List<HistorySession> {

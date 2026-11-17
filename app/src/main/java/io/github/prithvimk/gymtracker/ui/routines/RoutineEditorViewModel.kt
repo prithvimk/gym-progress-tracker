@@ -12,11 +12,12 @@ import io.github.prithvimk.gymtracker.data.repository.ExerciseRepository
 import io.github.prithvimk.gymtracker.data.repository.RoutineExerciseInput
 import io.github.prithvimk.gymtracker.data.repository.RoutineRepository
 import io.github.prithvimk.gymtracker.data.repository.RoutineSaveResult
+import io.github.prithvimk.gymtracker.data.repository.WorkoutRepository
 import io.github.prithvimk.gymtracker.domain.ExerciseTargets
-import io.github.prithvimk.gymtracker.ui.exercises.ExerciseFilter
-import io.github.prithvimk.gymtracker.ui.exercises.filteredBy
 import io.github.prithvimk.gymtracker.ui.workout.ExercisePickerState
+import io.github.prithvimk.gymtracker.ui.workout.PickerChip
 import io.github.prithvimk.gymtracker.ui.workout.toggled
+import io.github.prithvimk.gymtracker.ui.workout.withLibrary
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -49,6 +50,7 @@ class RoutineEditorViewModel(
     savedStateHandle: SavedStateHandle,
     private val routineRepository: RoutineRepository,
     exerciseRepository: ExerciseRepository,
+    workoutRepository: WorkoutRepository,
 ) : ViewModel() {
     private val routineId: String? = savedStateHandle[ROUTINE_ID_ARG]
 
@@ -60,8 +62,12 @@ class RoutineEditorViewModel(
     private val pickerInput = MutableStateFlow<ExercisePickerState?>(null)
 
     val picker: StateFlow<ExercisePickerState?> =
-        combine(pickerInput, exerciseRepository.observeExercises()) { input, all ->
-            input?.copy(options = all.filteredBy(ExerciseFilter(query = input.query)))
+        combine(
+            pickerInput,
+            exerciseRepository.observeExercises(),
+            workoutRepository.observeRecentExerciseIds(),
+        ) { input, all, recent ->
+            input?.withLibrary(all, recent)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), null)
 
     // Names and details of library exercises, for exercises added from the picker.
@@ -139,6 +145,10 @@ class RoutineEditorViewModel(
 
     fun onPickerQueryChange(query: String) {
         pickerInput.update { it?.copy(query = query) }
+    }
+
+    fun onPickerChipSelect(chip: PickerChip) {
+        pickerInput.update { it?.copy(chip = chip) }
     }
 
     fun onPickerToggle(exerciseId: String) {
@@ -246,6 +256,7 @@ class RoutineEditorViewModel(
                         createSavedStateHandle(),
                         app.container.routineRepository,
                         app.container.exerciseRepository,
+                        app.container.workoutRepository,
                     )
                 }
             }

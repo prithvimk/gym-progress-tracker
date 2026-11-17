@@ -3,19 +3,25 @@
 package io.github.prithvimk.gymtracker.ui.exercises
 
 import androidx.annotation.StringRes
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
@@ -32,9 +38,17 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -47,16 +61,17 @@ import io.github.prithvimk.gymtracker.domain.model.Equipment
 import io.github.prithvimk.gymtracker.domain.model.MuscleGroup
 import io.github.prithvimk.gymtracker.domain.model.PrType
 import io.github.prithvimk.gymtracker.domain.model.SetType
+import io.github.prithvimk.gymtracker.ui.format.signedVolumeText
 import io.github.prithvimk.gymtracker.ui.format.volumeText
 import io.github.prithvimk.gymtracker.ui.format.weightText
 import io.github.prithvimk.gymtracker.ui.history.formatDate
 import io.github.prithvimk.gymtracker.ui.history.formatStartTime
 import io.github.prithvimk.gymtracker.ui.theme.GymTrackerTheme
 import io.github.prithvimk.gymtracker.ui.theme.recordColors
+import io.github.prithvimk.gymtracker.ui.theme.tabular
 import io.github.prithvimk.gymtracker.ui.workout.RecordBadge
 import io.github.prithvimk.gymtracker.ui.workout.SetLabel
 import io.github.prithvimk.gymtracker.ui.workout.formatSetNumber
-import io.github.prithvimk.gymtracker.ui.workout.recordText
 import io.github.prithvimk.gymtracker.ui.workout.text
 import java.time.Instant
 import java.time.LocalDate
@@ -122,8 +137,11 @@ private fun ExerciseDetailContent(state: ExerciseDetailState.Loaded, modifier: M
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         item { ExerciseSubtitle(state.exercise) }
+        if (state.e1rm.isNotEmpty()) {
+            item { E1rmHero(state.e1rm, state.e1rmChange, Modifier.padding(top = 8.dp)) }
+        }
         item { SectionTitle(R.string.exercise_detail_records) }
-        item { RecordsCard(state.records) }
+        item { RecordTiles(state.records) }
         item { SectionTitle(R.string.exercise_detail_history) }
         if (state.sessions.isEmpty()) {
             item { MutedText(stringResource(R.string.exercise_detail_empty)) }
@@ -177,34 +195,164 @@ private fun MutedText(text: String, modifier: Modifier = Modifier) {
     )
 }
 
-/** Each standing record with the day it was set, or a note that there are none yet. */
+/**
+ * The latest session's estimated 1RM in large type, how it moved over the last 30 days, and a
+ * sparkline of every session's.
+ */
 @Composable
-private fun RecordsCard(records: List<RecordBest>) {
+private fun E1rmHero(points: List<E1rmPoint>, change: Double?, modifier: Modifier = Modifier) {
+    val colors = MaterialTheme.colorScheme
+    Column(
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = modifier
+            .fillMaxWidth()
+            .background(colors.primaryContainer, RoundedCornerShape(16.dp))
+            .padding(16.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.exercise_detail_e1rm),
+            style = MaterialTheme.typography.labelLarge,
+            color = colors.onPrimaryContainer,
+        )
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(
+                text = volumeText(points.last().kg),
+                style = MaterialTheme.typography.displaySmall.tabular(),
+                color = colors.onPrimaryContainer,
+                modifier = Modifier.weight(1f),
+            )
+            if (points.size >= 2) {
+                Sparkline(
+                    values = points.map { it.kg },
+                    color = colors.primary,
+                    modifier = Modifier.width(SPARKLINE_WIDTH).height(SPARKLINE_HEIGHT).padding(bottom = 6.dp),
+                )
+            }
+        }
+        if (change != null) E1rmChangeRow(change)
+    }
+}
+
+/** "↑ +4.2 kg in 30 days", with an arrow only when it moved. */
+@Composable
+private fun E1rmChangeRow(change: Double) {
+    val color = MaterialTheme.colorScheme.onPrimaryContainer
+    val text =
+        if (change == 0.0) {
+            pluralStringResource(R.plurals.exercise_detail_e1rm_no_change, E1RM_CHANGE_DAYS, E1RM_CHANGE_DAYS)
+        } else {
+            pluralStringResource(
+                R.plurals.exercise_detail_e1rm_change,
+                E1RM_CHANGE_DAYS,
+                signedVolumeText(change),
+                E1RM_CHANGE_DAYS,
+            )
+        }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        if (change != 0.0) {
+            Icon(
+                painter = painterResource(if (change > 0) R.drawable.ic_trending_up else R.drawable.ic_trending_down),
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(18.dp).padding(end = 4.dp),
+            )
+        }
+        Text(text, style = MaterialTheme.typography.bodyMedium.tabular(), color = color)
+    }
+}
+
+/** [values] as a line from the oldest on the left to the latest on the right, which gets a dot. */
+@Composable
+private fun Sparkline(values: List<Double>, color: Color, modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier.clearAndSetSemantics {}) {
+        val low = values.min()
+        val span = (values.max() - low).takeIf { it > 0 } ?: 1.0
+        val dot = 3.dp.toPx()
+        fun point(index: Int): Offset = Offset(
+            x = dot + (size.width - 2 * dot) * index / (values.size - 1),
+            y = dot + (size.height - 2 * dot) * (1 - ((values[index] - low) / span).toFloat()),
+        )
+        val path = Path().apply {
+            moveTo(point(0).x, point(0).y)
+            for (index in 1 until values.size) lineTo(point(index).x, point(index).y)
+        }
+        drawPath(path, color, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+        drawCircle(color, radius = dot, center = point(values.size - 1))
+    }
+}
+
+private val SPARKLINE_WIDTH = 120.dp
+private val SPARKLINE_HEIGHT = 48.dp
+
+/** The standing records as a grid of tiles, two to a row, each with the day it was set. */
+@Composable
+private fun RecordTiles(records: List<RecordBest>) {
     if (records.isEmpty()) {
         MutedText(stringResource(R.string.exercise_detail_no_records))
         return
     }
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            records.forEach { record ->
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_trophy),
-                        contentDescription = null,
-                        tint = MaterialTheme.recordColors.record,
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Text(
-                        text = recordText(record.type, record.value, record.weightKg, record.reps),
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.weight(1f).padding(start = 8.dp),
-                    )
-                    MutedText(formatDate(localDate(record.achievedAt), "dMMMy"))
-                }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        records.chunked(2).forEach { pair ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.height(IntrinsicSize.Min)) {
+                pair.forEach { RecordTile(it, Modifier.weight(1f).fillMaxHeight()) }
+                if (pair.size == 1) Spacer(Modifier.weight(1f))
             }
         }
     }
 }
+
+/** A record's value with a gold trophy, and what it is and when it was set under it. */
+@Composable
+private fun RecordTile(record: RecordBest, modifier: Modifier = Modifier) {
+    val date = formatDate(localDate(record.achievedAt), "dMMM")
+    Column(
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+        modifier = modifier
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(12.dp))
+            .padding(12.dp)
+            .semantics(mergeDescendants = true) {},
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                painter = painterResource(R.drawable.ic_trophy),
+                contentDescription = null,
+                tint = MaterialTheme.recordColors.record,
+                modifier = Modifier.size(16.dp),
+            )
+            Text(
+                text = recordValueText(record),
+                style = MaterialTheme.typography.titleMedium.tabular(),
+                maxLines = 1,
+                modifier = Modifier.padding(start = 6.dp),
+            )
+        }
+        Text(
+            text = stringResource(R.string.record_tile_label, stringResource(record.type.tileLabelRes), date),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/** A record's number for its tile: "82.5 kg", "8 @ 82.5 kg", "104.5 kg". */
+@Composable
+private fun recordValueText(record: RecordBest): String = when (record.type) {
+    PrType.WEIGHT -> weightText(record.value)
+    PrType.REPS_AT_WEIGHT -> stringResource(
+        R.string.record_tile_reps_at_weight,
+        record.reps,
+        weightText(record.weightKg)
+    )
+    PrType.E1RM, PrType.VOLUME -> volumeText(record.value)
+}
+
+private val PrType.tileLabelRes: Int
+    get() = when (this) {
+        PrType.WEIGHT -> R.string.record_tile_weight
+        PrType.REPS_AT_WEIGHT -> R.string.record_tile_reps
+        PrType.E1RM -> R.string.record_tile_e1rm
+        PrType.VOLUME -> R.string.record_tile_volume
+    }
 
 @Composable
 private fun SessionCard(session: HistorySession) {

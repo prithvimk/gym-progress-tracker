@@ -4,8 +4,6 @@ import io.github.prithvimk.gymtracker.data.db.entity.WorkoutSet
 import io.github.prithvimk.gymtracker.data.repository.ExerciseRepository
 import io.github.prithvimk.gymtracker.data.repository.WorkoutRepository
 import io.github.prithvimk.gymtracker.domain.model.SetType
-import io.github.prithvimk.gymtracker.ui.exercises.ExerciseFilter
-import io.github.prithvimk.gymtracker.ui.exercises.filteredBy
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -38,8 +36,12 @@ class SessionEditor(
     private val pickerInput = MutableStateFlow<ExercisePickerState?>(null)
 
     val picker: StateFlow<ExercisePickerState?> =
-        combine(pickerInput, exerciseRepository.observeExercises()) { input, all ->
-            input?.copy(options = all.filteredBy(ExerciseFilter(query = input.query)))
+        combine(
+            pickerInput,
+            exerciseRepository.observeExercises(),
+            workoutRepository.observeRecentExerciseIds(),
+        ) { input, all, recent ->
+            input?.withLibrary(all, recent)
         }.stateIn(scope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), null)
 
     fun onAddExercisesClick() {
@@ -48,6 +50,10 @@ class SessionEditor(
 
     fun onPickerQueryChange(query: String) {
         pickerInput.update { it?.copy(query = query) }
+    }
+
+    fun onPickerChipSelect(chip: PickerChip) {
+        pickerInput.update { it?.copy(chip = chip) }
     }
 
     fun onPickerToggle(exerciseId: String) {
