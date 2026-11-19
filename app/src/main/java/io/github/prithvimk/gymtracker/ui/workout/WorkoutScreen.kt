@@ -87,6 +87,7 @@ import io.github.prithvimk.gymtracker.ui.components.restText
 import io.github.prithvimk.gymtracker.ui.exercises.labelRes
 import io.github.prithvimk.gymtracker.ui.format.volumeText
 import io.github.prithvimk.gymtracker.ui.format.weightText
+import io.github.prithvimk.gymtracker.ui.navigation.HideMiniBar
 import io.github.prithvimk.gymtracker.ui.theme.GymTrackerTheme
 import io.github.prithvimk.gymtracker.ui.theme.isDark
 import io.github.prithvimk.gymtracker.ui.theme.recordColors
@@ -656,6 +657,8 @@ internal fun SessionEditorContent(
             }
         }
         if (openKeypad != null) {
+            // Editing a past workout while one runs: the keypad gets the bottom of the screen to itself.
+            HideMiniBar()
             Keypad(
                 field = openKeypad.field,
                 actions = keypadActions,

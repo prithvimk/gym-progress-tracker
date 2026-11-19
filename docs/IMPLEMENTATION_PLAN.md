@@ -118,7 +118,7 @@ Settled while planning, to keep the picks from contradicting each other:
 - **The mini bar gives way.** It hides while the keypad or the keyboard is up, and the Exercises tab's floating button moves above it.
 - **Rep range in the routine editor (F15).** The collapsed row reads "3 × 6–8 · rest 3:00"; expanding it shows separate steppers for Sets, Reps from, Reps to and Rest.
 - **Tapping a routine row opens the editor (F09),** as today; nothing changes until you save. The play button starts the routine, and the ⋮ menu holds Edit and Delete.
-- **One title style on all tabs (F17):** a large title that collapses into a small top bar as the list scrolls, with actions on the right (History's calendar toggle) and Exercises' search bar under its title.
+- **One title style on all tabs (F17):** a large title (Material's medium top bar) that collapses into a small top bar as the list scrolls, with actions on the right (History's calendar toggle) and Exercises' search bar under its title.
 - **Reordering is drag and drop everywhere (F15).** A small Compose drag-and-drop list library powers the routine editor, and the logger gets a "Reorder exercises" menu entry that opens the same compact draggable list.
 - **Roboto with tabular figures (F03).** No bundled display face for now; revisit a condensed one (about 100 KB) after D2.
 - **Rest and elapsed time share one top-bar chip; tap the title to peek (F04 + F06, F22).** Outside rest the chip shows the elapsed time. During rest it shows only the countdown, and tapping the routine title spins it round to the elapsed time for 5 seconds. A split pill showing both was ruled out: at phone width it left one letter of the title.
@@ -133,7 +133,8 @@ Settled while planning, to keep the picks from contradicting each other:
 - **D2 is done**: the rest chip and peek replaced the rest bar. On a Pixel 7 with the bottom bar, the keypad open and a rest running, all four sets of a four-set exercise show under its header.
 - **D3 is done**: the Up next card, routine rows with last done and typical duration, and the full-screen finish summary with its comparison against the routine's last session.
 - **D4 is done**: History cards and the volume-tinted calendar, the workout detail's tiles and links, the Exercises list with last top sets, the e1RM hero and record tiles, and the picker's chips, numbers and tray.
-- **Next up:** D5.
+- **D5 is part done**: the mini bar, tab icons and one title style on all four tabs.
+- **Next up:** the routine editor (D5's last item), then Phase 5.
 
 ## Phase D1: Design foundations
 
@@ -192,9 +193,9 @@ Done when: the Exercises list shows your last top set for every exercise you've 
 Goal: routines read like a written program, and a running workout is never out of sight.
 
 - [ ] Routine editor: one summary line per exercise ("3 × 6–8 · rest 3:00"), one expanded at a time, drag to reorder, Delete in the menu (F15)
-- [ ] Mini bar above the navigation bar on every other tab while a workout runs: routine, elapsed time, rest countdown, tap to resume (F17)
-- [ ] Tab icons: dumbbell, history, list, sliders (vectors copied into `res/drawable`, not the extended icon library) (F17)
-- [ ] One title style on all four tabs (F17)
+- [x] Mini bar above the navigation bar on every other tab while a workout runs: routine, elapsed time, rest countdown, tap to resume (F17) (also on screens under the Workout tab, such as the routine editor; the countdown has the logger chip's ring and turns primary for the last 10 seconds; it hides while the keyboard or the keypad is up, and tapping it goes straight to the logger)
+- [x] Tab icons: dumbbell, history, list, sliders (vectors copied into `res/drawable`, not the extended icon library) (F17) (Material's fitness_center, history, format_list_bulleted and tune)
+- [x] One title style on all four tabs (F17) (Material's medium top bar, whose title collapses into the small bar as the list scrolls; the large one pushed every list about 70 dp down. History's calendar switch sits in it; Exercises' search bar and chips stay under it while the list scrolls)
 
 Done when: you can check an exercise's history mid-session and see the rest countdown the whole time.
 

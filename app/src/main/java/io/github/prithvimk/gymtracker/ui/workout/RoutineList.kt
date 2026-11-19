@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import io.github.prithvimk.gymtracker.R
 import io.github.prithvimk.gymtracker.data.repository.RoutineSummary
 import io.github.prithvimk.gymtracker.domain.upNext
+import io.github.prithvimk.gymtracker.ui.components.TabScaffold
 import io.github.prithvimk.gymtracker.ui.format.durationText
 import io.github.prithvimk.gymtracker.ui.format.relativeDayText
 
@@ -69,18 +70,24 @@ internal fun IdleContent(
     modifier: Modifier = Modifier,
 ) {
     val next = upNext(routines)
+    TabScaffold(title = stringResource(R.string.nav_workout), modifier = modifier) { padding ->
+        RoutineListContent(routines, next, onStartEmptyClick, actions, padding)
+    }
+}
+
+@Composable
+private fun RoutineListContent(
+    routines: List<RoutineSummary>,
+    next: RoutineSummary?,
+    onStartEmptyClick: () -> Unit,
+    actions: RoutineActions,
+    padding: PaddingValues,
+) {
     LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
+        modifier = Modifier.fillMaxSize().padding(padding),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        item {
-            Text(
-                text = stringResource(R.string.nav_workout),
-                style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.padding(bottom = 8.dp).semantics { heading() },
-            )
-        }
         if (next != null) {
             item(key = "up-next") { UpNextCard(next, actions, Modifier.animateItem()) }
         }

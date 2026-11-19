@@ -447,7 +447,7 @@ private fun ChipText(text: String) {
 
 /** A small ring that empties as the rest runs out; [fraction] is the share of it left. */
 @Composable
-private fun RestRing(fraction: Float, color: Color) {
+internal fun RestRing(fraction: Float, color: Color) {
     Canvas(modifier = Modifier.size(18.dp).padding(1.dp)) {
         val stroke = RING_STROKE.toPx()
         val inset = stroke / 2
@@ -553,7 +553,7 @@ private fun RestStepButton(label: String, description: String, onClick: () -> Un
 
 /** The time since [startedAt], ticking each second. Worked out from [startedAt], so it survives process death. */
 @Composable
-private fun rememberElapsedMillis(startedAt: Long): Long {
+internal fun rememberElapsedMillis(startedAt: Long): Long {
     val elapsed by produceState(System.currentTimeMillis() - startedAt, startedAt) {
         while (true) {
             value = System.currentTimeMillis() - startedAt
@@ -565,7 +565,7 @@ private fun rememberElapsedMillis(startedAt: Long): Long {
 
 /** The time left in [rest], ticking each second, or 0 without one. */
 @Composable
-private fun rememberRemainingMillis(rest: RestTimerState?): Long {
+internal fun rememberRemainingMillis(rest: RestTimerState?): Long {
     val remaining by produceState(rest?.remainingMillis(System.currentTimeMillis()) ?: 0L, rest) {
         if (rest == null) {
             value = 0L
@@ -621,8 +621,8 @@ private fun rememberAnimationsOff(): Boolean {
 /** How long a peek at the elapsed time lasts before the chip spins back to the rest. */
 internal const val PEEK_MILLIS = 5_000
 
-private const val TICK_MS = 1_000L
-private const val ENDING_MILLIS = 10_000L
+internal const val TICK_MS = 1_000L
+internal const val ENDING_MILLIS = 10_000L
 private const val FADE_MILLIS = 200
 private const val PULSE_MILLIS = 500
 private const val PULSE_SCALE = 1.07f
