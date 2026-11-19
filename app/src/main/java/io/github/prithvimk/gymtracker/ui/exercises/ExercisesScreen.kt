@@ -51,6 +51,7 @@ import io.github.prithvimk.gymtracker.data.db.entity.Exercise
 import io.github.prithvimk.gymtracker.domain.LastTopSet
 import io.github.prithvimk.gymtracker.domain.model.Equipment
 import io.github.prithvimk.gymtracker.domain.model.MuscleGroup
+import io.github.prithvimk.gymtracker.ui.components.TabScaffold
 import io.github.prithvimk.gymtracker.ui.format.relativeDayText
 import io.github.prithvimk.gymtracker.ui.format.topSetText
 import io.github.prithvimk.gymtracker.ui.theme.GymTrackerTheme
@@ -92,13 +93,36 @@ fun ExercisesScreen(
     modifier: Modifier = Modifier,
     onEquipmentSelect: (Equipment?) -> Unit = {},
 ) {
+    TabScaffold(title = stringResource(R.string.exercises_title), modifier = modifier) { padding ->
+        ExercisesContent(
+            filter = filter,
+            list = list,
+            onQueryChange = onQueryChange,
+            onMuscleGroupSelect = onMuscleGroupSelect,
+            onEquipmentSelect = onEquipmentSelect,
+            onShowArchivedChange = onShowArchivedChange,
+            onExerciseClick = onExerciseClick,
+            onCreateClick = onCreateClick,
+            modifier = Modifier.padding(padding),
+        )
+    }
+}
+
+/** The search bar and filter chips, which stay put under the title, then the list, which scrolls. */
+@Composable
+private fun ExercisesContent(
+    filter: ExerciseFilter,
+    list: ExerciseListState,
+    onQueryChange: (String) -> Unit,
+    onMuscleGroupSelect: (MuscleGroup?) -> Unit,
+    onEquipmentSelect: (Equipment?) -> Unit,
+    onShowArchivedChange: (Boolean) -> Unit,
+    onExerciseClick: (Exercise) -> Unit,
+    onCreateClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-            Text(
-                text = stringResource(R.string.exercises_title),
-                style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp),
-            )
             ExerciseSearchBar(query = filter.query, count = list.libraryCount, onQueryChange = onQueryChange)
             FilterChips(
                 filter = filter,

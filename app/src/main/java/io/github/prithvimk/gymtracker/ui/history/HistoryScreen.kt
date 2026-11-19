@@ -45,7 +45,6 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -58,6 +57,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.prithvimk.gymtracker.R
 import io.github.prithvimk.gymtracker.data.db.dao.WorkoutHistoryRow
 import io.github.prithvimk.gymtracker.ui.components.RecordChip
+import io.github.prithvimk.gymtracker.ui.components.TabScaffold
 import io.github.prithvimk.gymtracker.ui.format.durationText
 import io.github.prithvimk.gymtracker.ui.format.volumeText
 import io.github.prithvimk.gymtracker.ui.theme.GymTrackerTheme
@@ -107,16 +107,25 @@ fun HistoryScreen(
     modifier: Modifier = Modifier,
     calendarActions: CalendarActions = CalendarActions.None,
 ) {
-    when (state) {
-        HistoryUiState.Loading ->
-            Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+    val loaded = state as? HistoryUiState.Loaded
+    TabScaffold(
+        title = stringResource(R.string.nav_history),
+        modifier = modifier,
+        actions = {
+            // The switch between the list and the calendar, once there is something to show in them.
+            if (loaded != null && loaded.weeks.isNotEmpty()) ViewSwitch(loaded.view, calendarActions.onViewChange)
+        },
+    ) { padding ->
+        val contentModifier = Modifier.padding(padding)
+        when {
+            loaded == null ->
+                Box(contentModifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
 
-        is HistoryUiState.Loaded ->
-            if (state.weeks.isEmpty()) {
-                EmptyHistory(modifier)
-            } else {
-                HistoryContent(state, onWorkoutClick, calendarActions, modifier)
-            }
+            loaded.weeks.isEmpty() -> EmptyHistory(contentModifier)
+            else -> HistoryContent(loaded, onWorkoutClick, calendarActions, contentModifier)
+        }
     }
 }
 
@@ -129,10 +138,9 @@ private fun HistoryContent(
 ) {
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        item(key = "header") { HistoryHeader(state.view, calendarActions.onViewChange) }
         val calendar = state.calendar
         if (state.view == HistoryView.CALENDAR && calendar != null) {
             item(key = "calendar") { MonthCalendar(calendar, calendarActions) }
@@ -160,23 +168,16 @@ private fun HistoryContent(
     }
 }
 
-/** The tab's title, with an icon that switches between the list and the calendar. */
+/** The top bar's icon that switches between the list and the calendar; it shows the view it switches to. */
 @Composable
-private fun HistoryHeader(view: HistoryView, onViewChange: (HistoryView) -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
-        Text(
-            text = stringResource(R.string.nav_history),
-            style = MaterialTheme.typography.headlineMedium,
-            modifier = Modifier.weight(1f).semantics { heading() },
-        )
-        if (view == HistoryView.LIST) {
-            IconButton(onClick = { onViewChange(HistoryView.CALENDAR) }) {
-                Icon(Icons.Filled.DateRange, contentDescription = stringResource(R.string.history_show_calendar))
-            }
-        } else {
-            IconButton(onClick = { onViewChange(HistoryView.LIST) }) {
-                Icon(Icons.AutoMirrored.Filled.List, contentDescription = stringResource(R.string.history_show_list))
-            }
+private fun ViewSwitch(view: HistoryView, onViewChange: (HistoryView) -> Unit) {
+    if (view == HistoryView.LIST) {
+        IconButton(onClick = { onViewChange(HistoryView.CALENDAR) }) {
+            Icon(Icons.Filled.DateRange, contentDescription = stringResource(R.string.history_show_calendar))
+        }
+    } else {
+        IconButton(onClick = { onViewChange(HistoryView.LIST) }) {
+            Icon(Icons.AutoMirrored.Filled.List, contentDescription = stringResource(R.string.history_show_list))
         }
     }
 }
@@ -483,13 +484,11 @@ private fun EmptyHistory(modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(text = stringResource(R.string.nav_history), style = MaterialTheme.typography.headlineMedium)
         Text(
             text = stringResource(R.string.history_empty),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 8.dp),
         )
     }
 }

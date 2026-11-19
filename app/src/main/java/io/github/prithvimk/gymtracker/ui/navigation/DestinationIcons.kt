@@ -1,17 +1,15 @@
 package io.github.prithvimk.gymtracker.ui.navigation
 
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.annotation.DrawableRes
+import io.github.prithvimk.gymtracker.R
 
-val TopLevelDestination.icon: ImageVector
+/** The tab's icon: a dumbbell, a clock turning back, a list and sliders. */
+@get:DrawableRes
+val TopLevelDestination.iconRes: Int
     get() =
         when (this) {
-            TopLevelDestination.WORKOUT -> Icons.Filled.PlayArrow
-            TopLevelDestination.HISTORY -> Icons.Filled.DateRange
-            TopLevelDestination.EXERCISES -> Icons.AutoMirrored.Filled.List
-            TopLevelDestination.SETTINGS -> Icons.Filled.Settings
+            TopLevelDestination.WORKOUT -> R.drawable.ic_tab_workout
+            TopLevelDestination.HISTORY -> R.drawable.ic_tab_history
+            TopLevelDestination.EXERCISES -> R.drawable.ic_tab_exercises
+            TopLevelDestination.SETTINGS -> R.drawable.ic_tab_settings
         }

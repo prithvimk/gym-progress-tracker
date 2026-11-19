@@ -12,3 +12,5 @@
 *.aab
 *.jks
 *.keystore
+# Lint text report (lint.textOutput)
+/app/stdout
